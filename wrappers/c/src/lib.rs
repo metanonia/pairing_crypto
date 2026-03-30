@@ -25,6 +25,15 @@ extern crate lazy_static;
 #[macro_use]
 mod macros;
 
+#[no_mangle]
+pub extern "C" fn ffi_support_free_string(ptr: *mut std::os::raw::c_char) {
+    if !ptr.is_null() {
+        unsafe {
+            let _ = std::ffi::CString::from_raw(ptr);
+        }
+    }
+}
+
 /// FFI interface exposed by this crate
 pub mod bbs;
 

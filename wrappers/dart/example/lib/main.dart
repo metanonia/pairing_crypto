@@ -18,17 +18,27 @@ class _MyAppState extends State<MyApp> {
   late final PairingCryptoLib _sdk;
   Uint8List? _secretKey;
   Uint8List? _publicKey;
+  // bbs_simple.rs에서 사용하는 것과 동일한 상수들
+  static final Uint8List _exampleIkm = Uint8List.fromList(
+      'only_for_example_not_A_random_seed_at_Allllllllll'.codeUnits);
+  static final Uint8List _exampleKeyInfo =
+      Uint8List.fromList('example-key-info'.codeUnits);
+  static final Uint8List _exampleHeader =
+      Uint8List.fromList('example-header'.codeUnits);
+  static final Uint8List _examplePresentationHeader =
+      Uint8List.fromList('example-presentation-header'.codeUnits);
+  static final List<Uint8List> _exampleMessages = [
+    Uint8List.fromList('example-message-1'.codeUnits),
+    Uint8List.fromList('example-message-2'.codeUnits),
+  ];
 
   @override
   void initState() {
     super.initState();
     try {
       _sdk = PairingCryptoLib();
-      // 테스트용 키 쌍 생성
-      final keys = _sdk.generateKeyPair(
-        Uint8List(32)..fillRange(0, 32, 1), // IKM
-        Uint8List(0), // Key Info
-      );
+      // 1. 키 쌍 생성 (Key Generation) - bbs_simple.rs와 동일한 시드 사용
+      final keys = _sdk.generateKeyPair(_exampleIkm, _exampleKeyInfo);
       _secretKey = keys['secretKey'];
       _publicKey = keys['publicKey'];
     } catch (e) {
@@ -38,7 +48,7 @@ class _MyAppState extends State<MyApp> {
 
   void _runFullTest() {
     setState(() {
-      _status = '테스트 실행 중...';
+      _status = 'BBS 테스트 실행 중...';
     });
 
     try {
@@ -46,36 +56,59 @@ class _MyAppState extends State<MyApp> {
         throw Exception('키가 생성되지 않았습니다.');
       }
 
-      final messages = [
-        Uint8List.fromList('Hello Pairing Crypto'.codeUnits),
-        Uint8List.fromList('Selective Disclosure Test'.codeUnits),
-      ];
+      final messages = _exampleMessages;
 
-      // 1. 서명 생성 (Sign)
-      final signature = _sdk.sign(_secretKey!, _publicKey!, messages);
+      // 2. 여러 메시지에 대한 서명 생성 (Multi-message Signing)
+      final signature = _sdk.sign(
+        _secretKey!,
+        _publicKey!,
+        messages,
+        _exampleHeader,
+      );
       final signStatus = '서명 성공 (${signature.length}바이트)';
 
-      // 2. 서명 검증 (Verify)
-      final isVerified = _sdk.verify(_publicKey!, signature, messages);
+      // 3. 서명 검증 (Verification)
+      final isVerified = _sdk.verify(
+        _publicKey!,
+        signature,
+        messages,
+        _exampleHeader,
+      );
       final verifyStatus = isVerified ? '검증 성공' : '검증 실패';
 
-      // 3. 증명 생성 (Derive Proof - 첫 번째 메시지만 공개)
+      // 4. 선택적 공개를 위한 설정 (Selective Disclosure Setup)
+      // 첫 번째 인덱스의 메시지(0)만 공개하도록 설정
       final proofMessages = [
         {'value': messages[0], 'reveal': true},
         {'value': messages[1], 'reveal': false},
       ];
-      final proof = _sdk.deriveProof(_publicKey!, signature, proofMessages);
+
+      // 5. 증명 생성 (Proof Generation / Zero-Knowledge Proof)
+      final proof = _sdk.deriveProof(
+        _publicKey!,
+        signature,
+        proofMessages,
+        header: _exampleHeader,
+        presentationHeader: _examplePresentationHeader,
+      );
       final proofGenStatus = '증명 생성 성공 (${proof.length}바이트)';
 
-      // 4. 증명 검증 (Verify Proof)
+      // 6. 증명 검증 (Proof Verification)
+      // 검증자는 공개키와 '공개된 메시지들'만 가지고 증명값이 유효한지 확인
       final disclosedMessages = [
         {'index': 0, 'value': messages[0]},
       ];
-      final isProofVerified = _sdk.verifyProof(_publicKey!, proof, disclosedMessages);
+      final isProofVerified = _sdk.verifyProof(
+        _publicKey!,
+        proof,
+        disclosedMessages,
+        header: _exampleHeader,
+        presentationHeader: _examplePresentationHeader,
+      );
       final proofVerifyStatus = isProofVerified ? '증명 검증 성공' : '증명 검증 실패';
 
       setState(() {
-        _status = '--- BBS 종합 테스트 결과 ---\n\n'
+        _status = '--- BBS 종합 테스트 결과 (bbs_simple.rs 대응) ---\n\n'
             '1. $signStatus\n'
             '2. $verifyStatus\n'
             '3. $proofGenStatus\n'

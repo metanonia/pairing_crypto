@@ -1,0 +1,370 @@
+package pairing_crypto
+
+/*
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/../../target/aarch64-apple-darwin/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-apple-darwin/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-unknown-linux-gnu/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-pc-windows-msvc/release -lpairing_crypto_c
+#include "pairing_crypto.h"
+#include <stdlib.h>
+*/
+import "C"
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+// KeyPair represents a BBS key pair
+type KeyPair struct {
+	SecretKey []byte `json:"secretKey"`
+	PublicKey []byte `json:"publicKey"`
+}
+
+// BbsCipherSuite defines the interface for BBS operations
+type BbsCipherSuite interface {
+	GenerateKeyPair(ikm, keyInfo []byte) (*KeyPair, error)
+	Sign(secretKey, publicKey, header []byte, messages [][]byte) ([]byte, error)
+	Verify(publicKey, signature, header []byte, messages [][]byte) (bool, error)
+	DeriveProof(publicKey, signature, header, presentationHeader []byte, messages []ProofMessage) ([]byte, error)
+	VerifyProof(publicKey, proof, header, presentationHeader []byte, messages map[int][]byte) (bool, error)
+}
+
+// ProofMessage matches the Rust BbsDeriveProofRevealMessageRequestDto
+type ProofMessage struct {
+	Value  []byte `json:"value"`
+	Reveal bool   `json:"reveal"`
+}
+
+type bls12381Sha256 struct{}
+type bls12381Shake256 struct{}
+
+var (
+	BLS12381Sha256   BbsCipherSuite = &bls12381Sha256{}
+	BLS12381Shake256 BbsCipherSuite = &bls12381Shake256{}
+)
+
+// Helper: Convert Go []byte to C ByteArray
+func toByteArray(data []byte) C.ByteArray {
+	if len(data) == 0 {
+		return C.ByteArray{length: 0, data: nil}
+	}
+	return C.ByteArray{
+		length: C.size_t(len(data)),
+		data:   (*C.uint8_t)(unsafe.Pointer(&data[0])),
+	}
+}
+
+// Helper: Convert C ByteBuffer to Go []byte and free C memory
+func fromByteBuffer(buf C.ByteBuffer) []byte {
+	if buf.len == 0 {
+		return nil
+	}
+	defer C.pairing_crypto_byte_buffer_free(buf)
+	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+}
+
+// Helper: Process ExternError
+func handleError(err C.ExternError) error {
+	if err.code == 0 {
+		return nil
+	}
+	defer C.ffi_support_free_string(err.message)
+	return fmt.Errorf("pairing-crypto error (code %d): %s", err.code, C.GoString(err.message))
+}
+
+// --- SHA-256 Implementation ---
+
+func (s *bls12381Sha256) GenerateKeyPair(ikm, keyInfo []byte) (*KeyPair, error) {
+	var secretKey, publicKey C.ByteBuffer
+	var err C.ExternError
+	res := C.bbs_bls12_381_sha_256_generate_key_pair(toByteArray(ikm), toByteArray(keyInfo), &secretKey, &publicKey, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return &KeyPair{
+		SecretKey: fromByteBuffer(secretKey),
+		PublicKey: fromByteBuffer(publicKey),
+	}, nil
+}
+
+func (s *bls12381Sha256) Sign(secretKey, publicKey, header []byte, messages [][]byte) ([]byte, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_sha_256_sign_context_init(&err)
+	if handle == 0 {
+		return nil, handleError(err)
+	}
+
+	sk := toByteArray(secretKey)
+	C.bbs_bls12_381_sha_256_sign_context_set_secret_key(handle, sk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_sha_256_sign_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_sha_256_sign_context_set_header(handle, h, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	for _, msg := range messages {
+		m := toByteArray(msg)
+		C.bbs_bls12_381_sha_256_sign_context_add_message(handle, m, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+
+	var signature C.ByteBuffer
+	res := C.bbs_bls12_381_sha_256_sign_context_finish(handle, &signature, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(signature), nil
+}
+
+func (s *bls12381Sha256) Verify(publicKey, signature, header []byte, messages [][]byte) (bool, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_sha_256_verify_context_init(&err)
+	if handle == 0 {
+		return false, handleError(err)
+	}
+
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_sha_256_verify_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_sha_256_verify_context_set_header(handle, h, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	for _, msg := range messages {
+		m := toByteArray(msg)
+		C.bbs_bls12_381_sha_256_verify_context_add_message(handle, m, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	sig := toByteArray(signature)
+	C.bbs_bls12_381_sha_256_verify_context_set_signature(handle, sig, &err)
+	if err.code != 0 { return false, handleError(err) }
+
+	res := C.bbs_bls12_381_sha_256_verify_context_finish(handle, &err)
+	if res != 0 {
+		// Verification failed usually returns 1
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *bls12381Sha256) DeriveProof(publicKey, signature, header, presentationHeader []byte, messages []ProofMessage) ([]byte, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_sha_256_proof_gen_context_init(&err)
+	if handle == 0 {
+		return nil, handleError(err)
+	}
+
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_sha_256_proof_gen_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	sig := toByteArray(signature)
+	C.bbs_bls12_381_sha_256_proof_gen_context_set_signature(handle, sig, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_sha_256_proof_gen_context_set_header(handle, h, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	if len(presentationHeader) > 0 {
+		ph := toByteArray(presentationHeader)
+		C.bbs_bls12_381_sha_256_proof_gen_context_set_presentation_header(handle, ph, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+
+	for _, pm := range messages {
+		m := toByteArray(pm.Value)
+		C.bbs_bls12_381_sha_256_proof_gen_context_add_message(handle, C.bool(pm.Reveal), m, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+
+	var proof C.ByteBuffer
+	res := C.bbs_bls12_381_sha_256_proof_gen_context_finish(handle, &proof, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(proof), nil
+}
+
+func (s *bls12381Sha256) VerifyProof(publicKey, proof, header, presentationHeader []byte, revealedMessages map[int][]byte) (bool, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_sha_256_proof_verify_context_init(&err)
+	if handle == 0 {
+		return false, handleError(err)
+	}
+
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_sha_256_proof_verify_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	prf := toByteArray(proof)
+	C.bbs_bls12_381_sha_256_proof_verify_context_set_proof(handle, prf, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_sha_256_proof_verify_context_set_header(handle, h, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	if len(presentationHeader) > 0 {
+		ph := toByteArray(presentationHeader)
+		C.bbs_bls12_381_sha_256_proof_verify_context_set_presentation_header(handle, ph, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+
+	for idx, msg := range revealedMessages {
+		m := toByteArray(msg)
+		C.bbs_bls12_381_sha_256_proof_verify_context_add_message(handle, C.uint64_t(idx), m, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+
+	res := C.bbs_bls12_381_sha_256_proof_verify_context_finish(handle, &err)
+	if res != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+// --- SHAKE-256 Implementation (Omitted for brevity in initial draft, but can be added similarly) ---
+// Note: User requested ALL APIs, so I should add them if they are in the header.
+// To keep it clean, I'll add them now.
+
+func (s *bls12381Shake256) GenerateKeyPair(ikm, keyInfo []byte) (*KeyPair, error) {
+	var secretKey, publicKey C.ByteBuffer
+	var err C.ExternError
+	res := C.bbs_bls12_381_shake_256_generate_key_pair(toByteArray(ikm), toByteArray(keyInfo), &secretKey, &publicKey, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return &KeyPair{
+		SecretKey: fromByteBuffer(secretKey),
+		PublicKey: fromByteBuffer(publicKey),
+	}, nil
+}
+
+func (s *bls12381Shake256) Sign(secretKey, publicKey, header []byte, messages [][]byte) ([]byte, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_shake_256_sign_context_init(&err)
+	if handle == 0 {
+		return nil, handleError(err)
+	}
+	sk := toByteArray(secretKey)
+	C.bbs_bls12_381_shake_256_sign_context_set_secret_key(handle, sk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_shake_256_sign_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_shake_256_sign_context_set_header(handle, h, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	for _, m := range messages {
+		msg := toByteArray(m)
+		C.bbs_bls12_381_shake_256_sign_context_add_message(handle, msg, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	var sig C.ByteBuffer
+	if res := C.bbs_bls12_381_shake_256_sign_context_finish(handle, &sig, &err); res != 0 { return nil, handleError(err) }
+	return fromByteBuffer(sig), nil
+}
+
+func (s *bls12381Shake256) Verify(publicKey, signature, header []byte, messages [][]byte) (bool, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_shake_256_verify_context_init(&err)
+	if handle == 0 { return false, handleError(err) }
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_shake_256_verify_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_shake_256_verify_context_set_header(handle, h, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	for _, m := range messages {
+		msg := toByteArray(m)
+		C.bbs_bls12_381_shake_256_verify_context_add_message(handle, msg, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	sig := toByteArray(signature)
+	C.bbs_bls12_381_shake_256_verify_context_set_signature(handle, sig, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	if res := C.bbs_bls12_381_shake_256_verify_context_finish(handle, &err); res != 0 { return false, nil }
+	return true, nil
+}
+
+func (s *bls12381Shake256) DeriveProof(publicKey, signature, header, presentationHeader []byte, messages []ProofMessage) ([]byte, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_shake_256_proof_gen_context_init(&err)
+	if handle == 0 { return nil, handleError(err) }
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_shake_256_proof_gen_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	sig := toByteArray(signature)
+	C.bbs_bls12_381_shake_256_proof_gen_context_set_signature(handle, sig, &err)
+	if err.code != 0 { return nil, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_shake_256_proof_gen_context_set_header(handle, h, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	if len(presentationHeader) > 0 {
+		ph := toByteArray(presentationHeader)
+		C.bbs_bls12_381_shake_256_proof_gen_context_set_presentation_header(handle, ph, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	for _, pm := range messages {
+		m := toByteArray(pm.Value)
+		C.bbs_bls12_381_shake_256_proof_gen_context_add_message(handle, C.bool(pm.Reveal), m, &err)
+		if err.code != 0 { return nil, handleError(err) }
+	}
+	var prf C.ByteBuffer
+	if res := C.bbs_bls12_381_shake_256_proof_gen_context_finish(handle, &prf, &err); res != 0 { return nil, handleError(err) }
+	return fromByteBuffer(prf), nil
+}
+
+func (s *bls12381Shake256) VerifyProof(publicKey, proof, header, presentationHeader []byte, revealedMessages map[int][]byte) (bool, error) {
+	var err C.ExternError
+	handle := C.bbs_bls12_381_shake_256_proof_verify_context_init(&err)
+	if handle == 0 { return false, handleError(err) }
+	pk := toByteArray(publicKey)
+	C.bbs_bls12_381_shake_256_proof_verify_context_set_public_key(handle, pk, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	prf := toByteArray(proof)
+	C.bbs_bls12_381_shake_256_proof_verify_context_set_proof(handle, prf, &err)
+	if err.code != 0 { return false, handleError(err) }
+	
+	if len(header) > 0 {
+		h := toByteArray(header)
+		C.bbs_bls12_381_shake_256_proof_verify_context_set_header(handle, h, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	if len(presentationHeader) > 0 {
+		ph := toByteArray(presentationHeader)
+		C.bbs_bls12_381_shake_256_proof_verify_context_set_presentation_header(handle, ph, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	for idx, m := range revealedMessages {
+		msg := toByteArray(m)
+		C.bbs_bls12_381_shake_256_proof_verify_context_add_message(handle, C.uint64_t(idx), msg, &err)
+		if err.code != 0 { return false, handleError(err) }
+	}
+	if res := C.bbs_bls12_381_shake_256_proof_verify_context_finish(handle, &err); res != 0 { return false, nil }
+	return true, nil
+}

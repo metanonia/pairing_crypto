@@ -46,9 +46,22 @@ cd ..
 **터미널 명령어 (wrappers/c 폴더 기준):**
 
 ```bash
-# [Android] 디렉토리 생성 및 .so 파일 복사
+# [Android] 디렉토리 생성 및 .so 파일 복사 (모든 CPU 아키텍처 지원)
+# 64-bit ARM (최신 실제 기기)
 mkdir -p ../dart/example/android/app/src/main/jniLibs/arm64-v8a
 cp out/android/arm64-v8a/libpairing_crypto_c.so ../dart/example/android/app/src/main/jniLibs/arm64-v8a/
+
+# 32-bit ARM (구형 기기)
+mkdir -p ../dart/example/android/app/src/main/jniLibs/armeabi-v7a
+cp out/android/armeabi-v7a/libpairing_crypto_c.so ../dart/example/android/app/src/main/jniLibs/armeabi-v7a/
+
+# x86_64 (Intel Mac 에뮬레이터 등)
+mkdir -p ../dart/example/android/app/src/main/jniLibs/x86_64
+cp out/android/x86_64/libpairing_crypto_c.so ../dart/example/android/app/src/main/jniLibs/x86_64/
+
+# x86 (구형 에뮬레이터)
+mkdir -p ../dart/example/android/app/src/main/jniLibs/x86
+cp out/android/x86/libpairing_crypto_c.so ../dart/example/android/app/src/main/jniLibs/x86/
 
 # [iOS] 디렉토리 생성 및 .a 파일 복사
 mkdir -p ../dart/example/ios/Frameworks
@@ -72,7 +85,7 @@ cp ../dart/lib/pairing_crypto_ffi.dart ../dart/example/lib/
 
 ## 3. 종합 테스트 코드 (`main.dart`)
 
-`wrappers/dart/example/lib/main.dart` 파일에 아래 코드를 붙여넣어 BBS의 모든 과정(키 생성, 서명, 검증, 선택적 공개)을 테스트할 수 있습니다.
+`wrappers/dart/example/lib/main.dart` 파일에 아래 코드를 붙여넣어 BBS의 모든 과정(키 생성, 서명, 검증, 선택적 공개)을 테스트할 수 있습니다. 이 코드는 Rust의 `bbs_simple.rs` 예제와 동일한 데이터 및 흐름을 보여줍니다.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -96,16 +109,27 @@ class _MyAppState extends State<MyApp> {
   Uint8List? _secretKey;
   Uint8List? _publicKey;
 
+  // bbs_simple.rs와 동일한 테스트 상수
+  static final Uint8List _exampleIkm = Uint8List.fromList(
+      'only_for_example_not_A_random_seed_at_Allllllllll'.codeUnits);
+  static final Uint8List _exampleKeyInfo =
+      Uint8List.fromList('example-key-info'.codeUnits);
+  static final Uint8List _exampleHeader =
+      Uint8List.fromList('example-header'.codeUnits);
+  static final Uint8List _examplePresentationHeader =
+      Uint8List.fromList('example-presentation-header'.codeUnits);
+  static final List<Uint8List> _exampleMessages = [
+    Uint8List.fromList('example-message-1'.codeUnits),
+    Uint8List.fromList('example-message-2'.codeUnits),
+  ];
+
   @override
   void initState() {
     super.initState();
     try {
       _sdk = PairingCryptoLib();
-      // 테스트용 키 쌍 생성
-      final keys = _sdk.generateKeyPair(
-        Uint8List(32)..fillRange(0, 32, 1), // IKM
-        Uint8List(0), // Key Info
-      );
+      // 1. 키 쌍 생성 (Key Generation)
+      final keys = _sdk.generateKeyPair(_exampleIkm, _exampleKeyInfo);
       _secretKey = keys['secretKey'];
       _publicKey = keys['publicKey'];
     } catch (e) {
@@ -114,37 +138,46 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _runFullTest() {
-    setState(() { _status = '테스트 실행 중...'; });
+    setState(() { _status = 'BBS 테스트 실행 중...'; });
 
     try {
       if (_secretKey == null || _publicKey == null) throw Exception('키가 생성되지 않았습니다.');
+      final messages = _exampleMessages;
 
-      final messages = [
-        Uint8List.fromList('Hello Pairing Crypto'.codeUnits),
-        Uint8List.fromList('Selective Disclosure Test'.codeUnits),
-      ];
-
-      // 1. 서명 생성 (Sign)
-      final signature = _sdk.sign(_secretKey!, _publicKey!, messages);
+      // 2. 여러 메시지에 대한 서명 생성 (Signing)
+      final signature = _sdk.sign(_secretKey!, _publicKey!, messages, _exampleHeader);
       
-      // 2. 서명 검증 (Verify)
-      final isVerified = _sdk.verify(_publicKey!, signature, messages);
+      // 3. 서명 검증 (Verification)
+      final isVerified = _sdk.verify(_publicKey!, signature, messages, _exampleHeader);
       
-      // 3. 증명 생성 (Derive Proof - 첫 번째 메시지만 공개)
+      // 4. 선택적 공개를 위한 설정 (Selective Disclosure Setup)
+      // 첫 번째 인덱스의 메시지(0)만 공개하도록 설정
       final proofMessages = [
         {'value': messages[0], 'reveal': true},
         {'value': messages[1], 'reveal': false},
       ];
-      final proof = _sdk.deriveProof(_publicKey!, signature, proofMessages);
+
+      // 5. 증명 생성 (Proof Generation)
+      final proof = _sdk.deriveProof(
+        _publicKey!,
+        signature,
+        proofMessages,
+        header: _exampleHeader,
+        presentationHeader: _examplePresentationHeader,
+      );
       
-      // 4. 증명 검증 (Verify Proof)
-      final disclosedMessages = [
-        {'index': 0, 'value': messages[0]},
-      ];
-      final isProofVerified = _sdk.verifyProof(_publicKey!, proof, disclosedMessages);
+      // 6. 증명 검증 (Proof Verification)
+      final disclosedMessages = [{'index': 0, 'value': messages[0]}];
+      final isProofVerified = _sdk.verifyProof(
+        _publicKey!,
+        proof,
+        disclosedMessages,
+        header: _exampleHeader,
+        presentationHeader: _examplePresentationHeader,
+      );
 
       setState(() {
-        _status = '--- BBS 종합 테스트 결과 ---\n\n'
+        _status = '--- BBS 종합 테스트 결과 (bbs_simple.rs 대응) ---\n\n'
             '1. 서명: 성공 (${signature.length}바이트)\n'
             '2. 검증: ${isVerified ? "성공" : "실패"}\n'
             '3. 증명 생성: 성공 (${proof.length}바이트)\n'
@@ -231,9 +264,18 @@ BBS의 핵심 기능으로, 서명된 전체 메시지 중 **일부만 골라서
 
 ## 💡 유의 사항 및 팁
 
-1.  **메모리 관리**: FFI 내부적으로 `calloc`을 사용하여 메모리를 할당하고 `finish` 함수 호출 시 러스트 쪽에서 자동으로 해제되도록 설계되어 있습니다. 하지만 대량의 서명을 처리할 때는 성능 및 메모리 모니터링이 필요합니다.
+### 📱 Android 테스트 관련 팁
+1. **ABI 확인**: 실제 기기는 대부분 `arm64-v8a`를 사용하지만, 시뮬레이터는 macOS의 CPU에 따라 `x86_64`를 사용할 수도 있습니다. 에뮬레이터에서 실행이 안 된다면 `x86_64`용으로도 `.so`를 빌드하여 `jniLibs/x86_64`에 복사해야 합니다.
+2. **Logcat 분석**: `pairing_crypto`와 관련된 오류는 터미널 로그 외에도 Android Studio의 **Logcat**에서 `native` 또는 `flutter` 태그로 필터링하여 더 자세히 볼 수 있습니다.
+3. **NDK 버전**: 프로젝트의 `android/app/build.gradle`에 정의된 NDK 버전이 라이브러리 빌드 시 사용된 버전과 크게 다를 경우 런타임 오류가 발생할 수 있습니다.
+
+### 🍏 iOS 테스트 관련 팁
+1. **Xcode Linker Flags**: `-Wl,-force_load` 설정이 누락되면 서명 파일 검증 단계에서 런타임 오류가 발생할 확률이 높습니다. 반드시 설정해 주세요.
+2. **Bitcode**: 최근 Flutter/AppStore 가이드에 따라 라이브러리 빌드 시 Bitcode는 포함하지 않는 것이 일반적입니다.
+
+### ⚙️ 공통 팁
+1.  **메모리 관리**: FFI 내부적으로 `calloc`을 사용하여 메모리를 할당하고 `finish` 함수 호출 시 러스트 쪽에서 자동으로 해제되도록 설계되어 있습니다.
 2.  **보안**: `secretKey`는 절대 외부로 유출되지 않도록 기기의 Secure Storage 등에 안전하게 보관하세요.
 3.  **사이퍼슈트(Ciphersuite) 일치 확인**: 
-    - BBS는 "레시피"와 같은 사이퍼슈트 설정이 동일해야 호환됩니다. 
     - 현재 이 가이드와 브릿지는 전 세계 표준인 **`BLS12-381 SHA-256`** 버전을 사용하고 있습니다. 
-    - 연동할 서버나 다른 시스템이 `SHAKE-256` 등 다른 해시 함수를 쓰지 않는지 확인이 필요합니다. (다를 경우 암호 기술적 계산 결과가 달라져 검증에 실패합니다.)
+    - 연동할 서버나 다른 시스템이 `SHAKE-256` 등 다른 해시 함수를 쓰지 않는지 확인이 필요합니다.

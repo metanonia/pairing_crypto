@@ -81,7 +81,7 @@ macro_rules! bbs_proof_gen_api_generator {
         pub extern "C" fn $add_message_wrapper_fn(
             handle: u64,
             reveal: bool,
-            message: &ByteArray,
+            message: ByteArray,
             err: &mut ExternError,
         ) -> i32 {
             let message = message.to_vec();
