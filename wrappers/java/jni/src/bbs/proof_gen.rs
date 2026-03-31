@@ -78,7 +78,7 @@ macro_rules! bbs_proof_gen_api_wrapper_generator {
                         let byte_array = ByteArray::from(&s);
                         $set_public_key_fn(
                             handle as u64,
-                            &byte_array,
+                            byte_array,
                             &mut error,
                         )
                     }
@@ -99,7 +99,7 @@ macro_rules! bbs_proof_gen_api_wrapper_generator {
                 Ok(s) => {
                     let mut error = ExternError::success();
                     let byte_array = ByteArray::from(&s);
-                    $set_header_fn(handle as u64, &byte_array, &mut error)
+                    $set_header_fn(handle as u64, byte_array, &mut error)
                 }
             }
         }
@@ -119,7 +119,7 @@ macro_rules! bbs_proof_gen_api_wrapper_generator {
                     let byte_array = ByteArray::from(&s);
                     let res = $set_signature_fn(
                         handle as u64,
-                        &byte_array,
+                        byte_array,
                         &mut error,
                     );
                     if res != 0 {
@@ -145,7 +145,7 @@ macro_rules! bbs_proof_gen_api_wrapper_generator {
                     let byte_array = ByteArray::from(&s);
                     $set_presentation_header_fn(
                         handle as u64,
-                        &byte_array,
+                        byte_array,
                         &mut error,
                     )
                 }
@@ -185,7 +185,7 @@ macro_rules! bbs_proof_gen_api_wrapper_generator {
                     $add_message_fn(
                         handle as u64,
                         reveal != 0,
-                        &byte_array,
+                        byte_array,
                         &mut error,
                     )
                 }

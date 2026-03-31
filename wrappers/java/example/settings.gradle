@@ -1,0 +1,5 @@
+rootProject.name = 'bbs-spring-example'
+
+// 메인 pairing_crypto 자바 라이브러리 프로젝트를 포함
+include(':pairing_crypto')
+project(':pairing_crypto').projectDir = new File(settingsDir, '..')

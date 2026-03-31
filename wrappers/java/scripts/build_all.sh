@@ -43,8 +43,28 @@ case $PLATFORM in
       mkdir -p $OUTPUT_LOCATION
 
       # Current platform build
-      cargo build -p $PROJECT_NAME  --target-dir target --release
-      cp -r ./target/release $OUTPUT_LOCATION
+      cargo build -p $PROJECT_NAME --target-dir target --release
+      cp -r ./target/release/* $OUTPUT_LOCATION/
+    ;;
+  LINUX)
+      # Create the root directory for the Linux release binaries
+      mkdir -p $OUTPUT_LOCATION/linux
+
+      # x86_64 linux build
+      echo "Building for Linux x86_64"
+      rustup target add x86_64-unknown-linux-gnu
+      cargo build -p $PROJECT_NAME --target x86_64-unknown-linux-gnu --target-dir target --release
+      cp ./target/x86_64-unknown-linux-gnu/release/lib$LIB_NAME.so $OUTPUT_LOCATION/linux/
+    ;;
+  WINDOWS)
+      # Create the root directory for the Windows release binaries
+      mkdir -p $OUTPUT_LOCATION/windows
+
+      # x86_64 windows msvc build
+      echo "Building for Windows x86_64 MSVC"
+      rustup target add x86_64-pc-windows-msvc
+      cargo build -p $PROJECT_NAME --target x86_64-pc-windows-msvc --target-dir target --release
+      cp ./target/x86_64-pc-windows-msvc/release/$LIB_NAME.dll $OUTPUT_LOCATION/windows/
     ;;
   MACOS)
       # Create the root directory for the MacOS release binaries

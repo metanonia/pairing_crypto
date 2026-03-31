@@ -28,9 +28,9 @@ typedef InitContextNative = ffi.Uint64 Function(ffi.Pointer<ExternError>);
 typedef InitContextDart = int Function(ffi.Pointer<ExternError>);
 
 typedef SetByteArrayNative = ffi.Int32 Function(
-    ffi.Uint64 handle, ffi.Pointer<ByteArray> value, ffi.Pointer<ExternError> err);
+    ffi.Uint64 handle, ByteArray value, ffi.Pointer<ExternError> err);
 typedef SetByteArrayDart = int Function(
-    int handle, ffi.Pointer<ByteArray> value, ffi.Pointer<ExternError> err);
+    int handle, ByteArray value, ffi.Pointer<ExternError> err);
 
 typedef FinishSignNative = ffi.Int32 Function(
     ffi.Uint64 handle, ffi.Pointer<ByteBuffer> signature, ffi.Pointer<ExternError> err);
@@ -52,14 +52,14 @@ typedef GetProofSizeNative = ffi.Int32 Function(ffi.IntPtr numUndisclosed);
 typedef GetProofSizeDart = int Function(int numUndisclosed);
 
 typedef ProofGenAddMsgNative = ffi.Int32 Function(
-    ffi.Uint64 handle, ffi.Bool reveal, ffi.Pointer<ByteArray> message, ffi.Pointer<ExternError> err);
+    ffi.Uint64 handle, ffi.Bool reveal, ByteArray message, ffi.Pointer<ExternError> err);
 typedef ProofGenAddMsgDart = int Function(
-    int handle, bool reveal, ffi.Pointer<ByteArray> message, ffi.Pointer<ExternError> err);
+    int handle, bool reveal, ByteArray message, ffi.Pointer<ExternError> err);
 
 typedef ProofVerifyAddMsgNative = ffi.Int32 Function(
-    ffi.Uint64 handle, ffi.IntPtr index, ffi.Pointer<ByteArray> message, ffi.Pointer<ExternError> err);
+    ffi.Uint64 handle, ffi.IntPtr index, ByteArray message, ffi.Pointer<ExternError> err);
 typedef ProofVerifyAddMsgDart = int Function(
-    int handle, int index, ffi.Pointer<ByteArray> message, ffi.Pointer<ExternError> err);
+    int handle, int index, ByteArray message, ffi.Pointer<ExternError> err);
 
 typedef SetBoolNative = ffi.Int32 Function(ffi.Uint64 handle, ffi.Bool value, ffi.Pointer<ExternError> err);
 typedef SetBoolDart = int Function(int handle, bool value, ffi.Pointer<ExternError> err);
@@ -250,7 +250,7 @@ class PairingCryptoLib {
         final value = msg['value'] as Uint8List;
         final reveal = msg['reveal'] as bool;
         final baPtr = _mallocByteArray(value);
-        _bbsProofGenAddMsg(handle, reveal, baPtr, err);
+        _bbsProofGenAddMsg(handle, reveal, baPtr.ref, err);
         _freePtr(baPtr);
         _checkError(err);
       }
@@ -286,7 +286,7 @@ class PairingCryptoLib {
         final index = msg['index'] as int;
         final value = msg['value'] as Uint8List;
         final baPtr = _mallocByteArray(value);
-        _bbsProofVerifyAddMsg(handle, index, baPtr, err);
+        _bbsProofVerifyAddMsg(handle, index, baPtr.ref, err);
         _freePtr(baPtr);
         _checkError(err);
       }
@@ -302,7 +302,7 @@ class PairingCryptoLib {
 
   void _setByteArray(int handle, Uint8List data, SetByteArrayDart func, ffi.Pointer<ExternError> err) {
     final baPtr = _mallocByteArray(data);
-    func(handle, baPtr, err);
+    func(handle, baPtr.ref, err);
     _checkError(err);
     _freePtr(baPtr);
   }

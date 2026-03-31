@@ -8,6 +8,9 @@ plugins {
 group 'com.github.mattrglobal'
 version '0.4.4-SNAPSHOT'
 
+sourceCompatibility = 17
+targetCompatibility = 17
+
 apply plugin: "java-library"
 
 repositories {
