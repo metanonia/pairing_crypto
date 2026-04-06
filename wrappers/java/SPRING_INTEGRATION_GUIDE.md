@@ -138,7 +138,69 @@ boolean isValid = bbs.verifyProof(publicKey, header, ph, proof, revealedMessages
 
 ---
 
-## 5. 예제 서버 실행 (`wrappers/java/example`)
+## 5. HD Wallet 및 ECIES 사용 예제
+
+Java 환경에서 신규 추가된 `HWallet` 및 `Ecies` 정적 보조 클래스를 사용하는 방법입니다.
+
+### 💳 HD Wallet (BIP32/39/44)
+```java
+// 1. 니모닉 생성
+String mnemonic = HWallet.generateMnemonic();
+
+// 2. 니모닉 + 패스프레이즈로 시드 유도
+byte[] seed = new byte[64];
+int res1 = HWallet.mnemonicToSeed(mnemonic, "my-password", seed);
+
+// 3. BIP44 경로 기반 개인키 파생 (예: Ethereum)
+String path = "m/44'/60'/0'/0/0";
+byte[] privKey = new byte[32];
+int res2 = HWallet.derivePrivateKey(seed, path, privKey);
+
+// 4. 공개키로부터 이더리움 주소 생성
+Ecies.KeyPair kp = Ecies.generateKeyPairFromBytes(privKey);
+String address = HWallet.ethAddressFromPubkey(kp.publicKey);
+System.out.println("Ethereum Address: " + address);
+
+// 5. ECDSA 서명 및 주소 복구 (ecrecover)
+byte[] message = "Integration test message".getBytes();
+byte[] signature = new byte[65];
+int res3 = HWallet.signEcdsaEth(privKey, message, signature);
+String recoveredAddr = HWallet.recoverEthAddress(message, signature);
+System.out.println("Recovered Address: " + recoveredAddr + " (Match: " + recoveredAddr.equals(address) + ")");
+```
+
+### 🔒 ECIES (secp256k1 암호화)
+```java
+// 1. 개인키로부터 ECIES 키쌍 복구
+Ecies.KeyPair keyPair = Ecies.generateKeyPairFromBytes(privKey);
+
+// 2. 공개키로 암호화
+byte[] msg = "비밀 메시지".getBytes();
+byte[] encrypted = Ecies.encrypt(keyPair.publicKey, msg);
+
+// 3. 개인키로 복호화
+byte[] decrypted = Ecies.decrypt(keyPair.secretKey, encrypted);
+System.out.println(new String(decrypted)); // "비밀 메시지"
+```
+
+---
+
+## 6. 종합 통합 테스트 시나리오 (5-Step)
+
+`pairing_crypto` 라이브러리의 모든 기능(HD Wallet, ECDSA, ECIES)을 유기적으로 연결하여 검증하는 표준 시나리오입니다.
+
+1.  **키 쌍 파생**: 동일한 니모닉 시드로부터 BIP44 경로(`m/44'/60'/0'/0/i`)를 따라 3개의 키 쌍을 생성합니다.
+2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소를 도출합니다.
+3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 임의의 메시지에 서명합니다.
+4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소를 복구(ecrecover)하여 2단계에서 생성한 주소와 일치하는지 확인합니다.
+5.  **ECIES 통신**: 첫 번째 키(index 0)와 두 번째 키(index 1) 간에 암호화 및 복호화를 수행하여 데이터 무결성을 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `wrappers/java/example/src/main/java/com/example/bbs/controller/IntegrationController.java`의 `/api/integration/test` 엔드포인트를 참고하세요.
+
+---
+
+## 7. 예제 서버 실행 (`wrappers/java/example`)
 
 제공된 예제 프로젝트를 통해 실제 동작을 확인할 수 있습니다.
 
@@ -156,10 +218,11 @@ cd wrappers/java/example
 - `POST /api/bbs/verify`: 서명 검증
 - `POST /api/bbs/proof/derive`: 선택적 공개 증명 생성
 - `POST /api/bbs/proof/verify`: 증명 검증
+- `GET /api/integration/test`: 5단계 통합 테스트 시나리오 실행
 
 ---
 
-## 6. 유의 사항 (JVM)
+## 8. 유의 사항 (JVM)
 
 1.  **Library Path**: `System.loadLibrary("pairing_crypto_jni")`가 호출될 때 해당 라이브러리 파일이 환경 변수나 `java.library.path`에 반드시 존재해야 합니다.
 2.  **Thread Safety**: `Bls12381Sha256` 인스턴스는 멀티스레드 환경에서 안전하게 설계되어 있으나, 컨텍스트 기반 연산 시 핸들 관리에 유의하세요.

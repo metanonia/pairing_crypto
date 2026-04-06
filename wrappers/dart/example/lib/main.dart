@@ -15,6 +15,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _status = '준비됨';
+  String _integrationStatus = '준비됨';
   late final PairingCryptoLib _sdk;
   Uint8List? _secretKey;
   Uint8List? _publicKey;
@@ -142,25 +143,113 @@ class _MyAppState extends State<MyApp> {
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 20),
-                      Text('상태: $_status'),
+                      Text('BBS 상태: $_status'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'HD Wallet & ECIES 통합 테스트',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('통합 테스트 상태: $_integrationStatus'),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _runFullTest,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('BBS 전체 프로세스 테스트', style: TextStyle(fontSize: 18)),
+              Wrap(
+                spacing: 20,
+                runSpacing: 20,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _runFullTest,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('BBS 테스트', style: TextStyle(fontSize: 16)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _runIntegrationTest,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('5단계 통합 테스트', style: TextStyle(fontSize: 16)),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _runIntegrationTest() {
+    setState(() {
+      _integrationStatus = '통합 테스트 시작 중...';
+    });
+
+    try {
+      // 1. 키 쌍 생성 (동일 시드에서 3개)
+      final mnemonic = _sdk.generateMnemonic();
+      final seed = _sdk.mnemonicToSeed(mnemonic, "");
+      
+      List<Uint8List> privKeys = [];
+      List<String> addresses = [];
+      
+      for (int i = 0; i < 3; i++) {
+        final path = "m/44'/60'/0'/0/$i";
+        final sk = _sdk.derivePrivateKey(seed, path);
+        privKeys.add(sk);
+        
+        // 2. 이더리움 주소 생성
+        final kp = _sdk.eciesKeypairFromBytes(sk);
+        final addr = _sdk.ethAddressFromPubkey(kp['publicKey']!);
+        addresses.add(addr);
+      }
+
+      // 3. 메시지 서명 (첫 번째 키 사용)
+      final message = Uint8List.fromList("Integration test message".codeUnits);
+      final signature = _sdk.hwalletSignEcdsaEth(privKeys[0], message);
+
+      // 4. 서명 주소 확인 (ecrecover)
+      final recoveredAddr = _sdk.hwalletRecoverEthAddress(message, signature);
+      final step4Success = recoveredAddr == addresses[0];
+
+      // 5. ECIES 암/복호화 (Key 0-1 간)
+      final kp1 = _sdk.eciesKeypairFromBytes(privKeys[1]);
+      final secretMsg = Uint8List.fromList("Secret ECIES message".codeUnits);
+      final encrypted = _sdk.eciesEncrypt(kp1['publicKey']!, secretMsg);
+      final decrypted = _sdk.eciesDecrypt(privKeys[1], encrypted);
+      final step5Success = String.fromCharCodes(decrypted) == "Secret ECIES message";
+
+      setState(() {
+        _integrationStatus = '--- 5단계 통합 테스트 결과 ---\n\n'
+            '1. HD Wallet 3개 키 생성 성공\n'
+            '2. ETH 주소 생성 성공: ${addresses[0]} 외 2개\n'
+            '3. ECDSA 서명 성공 (${signature.length}바이트)\n'
+            '4. 주소 복구 성공 여부: $step4Success ($recoveredAddr)\n'
+            '5. ECIES 암/복호화 성공 여부: $step5Success\n\n'
+            '종합 결과: ${step4Success && step5Success ? "PASS" : "FAIL"}';
+      });
+    } catch (e) {
+      setState(() {
+        _integrationStatus = '통합 테스트 실패: $e';
+      });
+    }
   }
 }

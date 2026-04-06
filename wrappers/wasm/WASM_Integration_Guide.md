@@ -157,14 +157,75 @@ console.log("증명 검증 결과:", result.verified);
 
 ---
 
-## 💡 유의 사항 및 팁
+## 4. HD Wallet 및 ECIES 사용 예제
+
+WASM 래퍼를 통해 브라우저나 Node.js에서 HD Wallet 및 ECIES 기능을 사용하는 방법입니다.
+
+### 💳 HD Wallet (BIP32/39/44)
+```typescript
+import { hwallet_generate_mnemonic, hwallet_mnemonic_to_seed, hwallet_derive_private_key, hwallet_eth_address_from_pubkey, ecies_keypair_from_bytes } from "@mattrglobal/pairing-crypto";
+
+// 1. 니모닉 생성
+const mnemonic = hwallet_generate_mnemonic();
+
+// 2. 시드 유도
+const seed = hwallet_mnemonic_to_seed(mnemonic, "password");
+
+// 3. 개인키 파생 (Ethereum 예시)
+const privKey = hwallet_derive_private_key(seed, "m/44'/60'/0'/0/0");
+
+// 4. 이더리움 주소 생성
+const keyPair = ecies_keypair_from_bytes(privKey);
+const address = hwallet_eth_address_from_pubkey(keyPair.public_key);
+console.log("ETH Address:", address);
+
+// 5. ECDSA 서명 및 주소 복구 (ecrecover)
+const message = new TextEncoder().encode("Integration test message");
+const signature = hwallet_sign_ecdsa_eth(privKey, message);
+const recoveredAddr = hwallet_recover_eth_address(message, signature);
+console.log("Recovered Address:", recoveredAddr);
+```
+
+### 🔒 ECIES (secp256k1 암호화)
+```typescript
+import { ecies_encrypt, ecies_decrypt, ecies_keypair_from_bytes } from "@mattrglobal/pairing-crypto";
+
+// 1. 키쌍 복구 (32바이트 개인키 기준)
+const keyPair = ecies_keypair_from_bytes(privKey);
+
+// 2. 공개키로 암호화
+const msg = new TextEncoder().encode("Hello ECIES");
+const encrypted = ecies_encrypt(keyPair.public_key, msg);
+
+// 3. 개인키로 복호화
+const decrypted = ecies_decrypt(keyPair.secret_key, encrypted);
+console.log(new TextDecoder().decode(decrypted)); // "Hello ECIES"
+```
+
+---
+
+## 5. 종합 통합 테스트 시나리오 (5-Step)
+
+`pairing_crypto` 라이브러리의 모든 기능(HD Wallet, ECDSA, ECIES)을 유기적으로 연결하여 검증하는 표준 시나리오입니다.
+
+1.  **키 쌍 파생**: 동일한 니모닉 시드로부터 BIP44 경로(`m/44'/60'/0'/0/i`)를 따라 3개의 키 쌍을 생성합니다.
+2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소를 도출합니다.
+3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 임의의 메시지에 서명합니다.
+4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소를 복구(ecrecover)하여 2단계에서 생성한 주소와 일치하는지 확인합니다.
+5.  **ECIES 통신**: 첫 번째 키(index 0)와 두 번째 키(index 1) 간에 암호화 및 복호화를 수행하여 데이터 무결성을 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `wrappers/wasm/example/src/components/bbs-demo.tsx`의 `runIntegrationTest` 함수를 참고하세요.
+
+---
+
+## 6. 💡 유의 사항 및 팁
 
 1.  **사이퍼슈트(Ciphersuite)**: 이 프로젝트는 `bls12381_sha256`과 `bls12381_shake256` 두 가지 모드를 지원합니다. 연동하려는 다른 시스템과 동일한 방식을 사용해야 합니다.
----
 
 ---
 
-## 🛠️ 트러블슈팅: Next.js 16+ (Turbopack) 빌드 및 경고 메시지
+## 7. 🛠️ 트러블슈팅: Next.js 16+ (Turbopack) 빌드 및 경고 메시지
 
 Next.js 16+ 버전에서 발생하는 주요 경고 및 설정 오류에 대한 대응 방법입니다.
 
@@ -203,7 +264,7 @@ export default nextConfig;
 
 ---
 
-## 🚀 Next.js 예제 프로젝트 (BBS Demo)
+## 8. 🚀 Next.js 예제 프로젝트 (BBS Demo)
 
 `wrappers/wasm/example` 디렉토리에는 `pairing_crypto` WASM 라이브러리를 실제 웹 프로젝트에 통합하는 표준 모델을 제시하는 **프리미엄 Next.js 예제**가 포함되어 있습니다.
 

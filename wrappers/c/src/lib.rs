@@ -39,3 +39,9 @@ pub mod bbs;
 
 /// Domain Transfer Objects used over the FFI interface exposed by this crate
 pub mod dtos;
+
+/// HD Wallet wrapper
+pub mod hwallet;
+
+/// ECIES wrapper
+pub mod ecies;

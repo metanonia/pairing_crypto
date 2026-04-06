@@ -29,8 +29,10 @@ mod utils;
 
 mod bbs;
 mod bbs_bound;
+pub mod hwallet;
+pub mod ecies;
 
 /// Exposed prelude when using wasm
 pub mod prelude {
-    pub use crate::{bbs::api::*, bbs_bound::api::*};
+    pub use crate::{bbs::api::*, bbs_bound::api::*, hwallet::*, ecies::*};
 }

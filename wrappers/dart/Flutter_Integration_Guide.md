@@ -260,9 +260,58 @@ BBS의 핵심 기능으로, 서명된 전체 메시지 중 **일부만 골라서
 - **disclosedMessages**: 공개된 메시지들만 인덱스와 함께 전달합니다.
   - `{'index': int, 'value': Uint8List}` 구조의 리스트. (index는 원본 메시지 리스트에서의 순서, 0부터 시작)
 
+### 💳 HD Wallet (BIP32/39/44)
+
+#### `generateMnemonic()`
+새로운 BIP39 니모닉 문구를 생성합니다.
+
+#### `mnemonicToSeed(String mnemonic, String passphrase)`
+니모닉과 패스프레이즈로부터 64바이트 시드를 유도합니다.
+
+#### `derivePrivateKey(Uint8List seed, String path)`
+유도된 시드와 파생 경로(예: `m/44'/60'/0'/0/0`)를 사용하여 개인키를 생성합니다.
+
+#### `ethAddressFromPubkey(Uint8List pubkey)`
+65바이트 비압축 공개키로부터 이더리움 주소 문자열을 생성합니다.
+
+#### `hwalletSignEcdsaEth(Uint8List privkey, Uint8List message)`
+이더리움 표준(Keccak256 해시) ECDSA 서명을 생성합니다. (65바이트 서명 반환)
+
+#### `hwalletRecoverEthAddress(Uint8List message, Uint8List signature)`
+서명과 메시지로부터 서명자의 이더리움 주소를 복구(ecrecover)합니다.
+
+### 🔒 ECIES (secp256k1 암호화)
+
+#### `eciesKeypairFromBytes(Uint8List privkey)`
+32바이트 개인키로부터 ECIES 연산용 키쌍(`secretKey`, `publicKey`)을 생성합니다.
+
+#### `eciesEncrypt(Uint8List uncompressedPubkey, Uint8List msg)`
+상대방의 비압축 공개키로 메시지를 암호화합니다.
+
+#### `eciesDecrypt(Uint8List privkey, Uint8List encryptedData)`
+자신의 개인키로 암호화된 데이터를 복호화합니다.
+
+#### `eciesDecrypt(Uint8List privkey, Uint8List encryptedData)`
+자신의 개인키로 암호화된 데이터를 복호화합니다.
+
 ---
 
-## 💡 유의 사항 및 팁
+## 6. 종합 통합 테스트 시나리오 (5-Step)
+
+`pairing_crypto` 라이브러리의 모든 기능(HD Wallet, ECDSA, ECIES)을 유기적으로 연결하여 검증하는 표준 시나리오입니다.
+
+1.  **키 쌍 파생**: 동일한 니모닉 시드로부터 BIP44 경로(`m/44'/60'/0'/0/i`)를 따라 3개의 키 쌍을 생성합니다.
+2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소를 도출합니다.
+3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 임의의 메시지에 서명합니다.
+4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소를 복구(ecrecover)하여 2단계에서 생성한 주소와 일치하는지 확인합니다.
+5.  **ECIES 통신**: 첫 번째 키(index 0)와 두 번째 키(index 1) 간에 암호화 및 복호화를 수행하여 데이터 무결성을 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `wrappers/dart/example/lib/main.dart`의 `_runIntegrationTest` 메서드를 참고하세요.
+
+---
+
+## 7. 💡 유의 사항 및 팁
 
 ### 📱 Android 테스트 관련 팁
 1. **ABI 확인**: 실제 기기는 대부분 `arm64-v8a`를 사용하지만, 시뮬레이터는 macOS의 CPU에 따라 `x86_64`를 사용할 수도 있습니다. 에뮬레이터에서 실행이 안 된다면 `x86_64`용으로도 `.so`를 빌드하여 `jniLibs/x86_64`에 복사해야 합니다.

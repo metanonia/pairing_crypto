@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -172,6 +173,71 @@ func main() {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"valid": valid})
+	})
+
+	// --- 5-Step Integration Test Endpoint ---
+	r.GET("/integration/test", func(c *gin.Context) {
+		// 1. 키 쌍 생성 (동일 시드에서 3개)
+		mnemonic, _ := pairing_crypto.GenerateMnemonic()
+		seed, _ := pairing_crypto.MnemonicToSeed(mnemonic, "")
+		
+		var privKeys [][]byte
+		var addresses []string
+		for i := 0; i < 3; i++ {
+			path := fmt.Sprintf("m/44'/60'/0'/0/%d", i)
+			sk, _ := pairing_crypto.DerivePrivateKey(seed, path)
+			privKeys = append(privKeys, sk)
+			
+			// 2. 이더리움 주소 생성
+			kp, _ := pairing_crypto.EciesKeypairFromBytes(sk)
+			addr, _ := pairing_crypto.EthAddressFromPubkey(kp.PublicKey)
+			addresses = append(addresses, addr)
+		}
+
+		// 3. 메시지 서명 (첫 번째 키 사용)
+		message := []byte("Integration test message")
+		sig, err := pairing_crypto.SignEcdsaEth(privKeys[0], message)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Step 3 failed: " + err.Error()})
+			return
+		}
+
+		// 4. 서명 주소 확인 (ecrecover)
+		recoveredAddr, err := pairing_crypto.RecoverEthAddress(message, sig)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Step 4 failed: " + err.Error()})
+			return
+		}
+		step4Success := recoveredAddr == addresses[0]
+
+		// 5. ECIES 암/복호화 (첫 번째 키 공용키로 암호화, 첫 번째 키 개인키로 복호화)
+		// 시나리오대로 키 0과 키 1 간의 통신 시뮬레이션
+		kp1, _ := pairing_crypto.EciesKeypairFromBytes(privKeys[1])
+		
+		secretMsg := []byte("Secret ECIES message")
+		encrypted, err := pairing_crypto.EciesEncrypt(kp1.PublicKey, secretMsg)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Step 5 encryption failed: " + err.Error()})
+			return
+		}
+		
+		decrypted, err := pairing_crypto.EciesDecrypt(privKeys[1], encrypted)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Step 5 decryption failed: " + err.Error()})
+			return
+		}
+		step5Success := string(decrypted) == string(secretMsg)
+
+		c.JSON(http.StatusOK, gin.H{
+			"mnemonic": mnemonic,
+			"addresses": addresses,
+			"step3_signature": hex.EncodeToString(sig),
+			"step4_recovered_address": recoveredAddr,
+			"step4_success": step4Success,
+			"step5_decrypted_message": string(decrypted),
+			"step5_success": step5Success,
+			"overall_success": step4Success && step5Success,
+		})
 	})
 
 	r.Run(":8080")

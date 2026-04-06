@@ -368,3 +368,109 @@ func (s *bls12381Shake256) VerifyProof(publicKey, proof, header, presentationHea
 	if res := C.bbs_bls12_381_shake_256_proof_verify_context_finish(handle, &err); res != 0 { return false, nil }
 	return true, nil
 }
+
+// --- HWallet Implementation ---
+
+func GenerateMnemonic() (string, error) {
+	var mnemonicOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_generate_mnemonic(&mnemonicOut, &err)
+	if res != 0 {
+		return "", handleError(err)
+	}
+	mnemonicBytes := fromByteBuffer(mnemonicOut)
+	return string(mnemonicBytes), nil
+}
+
+func MnemonicToSeed(mnemonic, passphrase string) ([]byte, error) {
+	cMnemonic := C.CString(mnemonic)
+	defer C.free(unsafe.Pointer(cMnemonic))
+	cPassphrase := C.CString(passphrase)
+	defer C.free(unsafe.Pointer(cPassphrase))
+
+	var seedOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_mnemonic_to_seed(C.FfiStr(cMnemonic), C.FfiStr(cPassphrase), &seedOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(seedOut), nil
+}
+
+func DerivePrivateKey(seed []byte, path string) ([]byte, error) {
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+
+	var privOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_derive_private_key(toByteArray(seed), C.FfiStr(cPath), &privOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(privOut), nil
+}
+
+func EthAddressFromPubkey(pubkey []byte) (string, error) {
+	var addrOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_eth_address_from_pubkey(toByteArray(pubkey), &addrOut, &err)
+	if res != 0 {
+		return "", handleError(err)
+	}
+	return string(fromByteBuffer(addrOut)), nil
+}
+
+func SignEcdsaEth(privkey, message []byte) ([]byte, error) {
+	var sigOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_sign_ecdsa_eth(toByteArray(privkey), toByteArray(message), &sigOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(sigOut), nil
+}
+
+func RecoverEthAddress(message, signature []byte) (string, error) {
+	var addrOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_hwallet_recover_eth_address(toByteArray(message), toByteArray(signature), &addrOut, &err)
+	if res != 0 {
+		return "", handleError(err)
+	}
+	return string(fromByteBuffer(addrOut)), nil
+}
+
+// --- ECIES Implementation ---
+
+func EciesKeypairFromBytes(privkey []byte) (*KeyPair, error) {
+	var skOut, pkOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_keypair_from_bytes(toByteArray(privkey), &skOut, &pkOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return &KeyPair{
+		SecretKey: fromByteBuffer(skOut),
+		PublicKey: fromByteBuffer(pkOut),
+	}, nil
+}
+
+func EciesEncrypt(uncompressedPubkey, msg []byte) ([]byte, error) {
+	var encOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_encrypt(toByteArray(uncompressedPubkey), toByteArray(msg), &encOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(encOut), nil
+}
+
+func EciesDecrypt(privkey, encryptedMsg []byte) ([]byte, error) {
+	var decOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_decrypt(toByteArray(privkey), toByteArray(encryptedMsg), &decOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(decOut), nil
+}

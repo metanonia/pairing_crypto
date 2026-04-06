@@ -62,6 +62,7 @@
                 <button onclick="showTab('keygen')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition active" id="btn-keygen">Key Generation</button>
                 <button onclick="showTab('sign')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-sign">Signing</button>
                 <button onclick="showTab('proof')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-proof">ZKP & Disclosure</button>
+                <button onclick="showTab('integration')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-integration">Integration Test</button>
             </div>
 
             <!-- KeyGen Tab -->
@@ -123,6 +124,41 @@
                 <div>
                     <label class="text-sm text-slate-400 mb-1 block">Proof Data (Hex)</label>
                     <textarea id="proof-display" readonly class="input-field h-32 font-mono text-xs" placeholder="Derived proof will appear here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Integration Tab -->
+            <div id="tab-integration" class="tab-content space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold">5-Step Integration Test</h2>
+                    <button onclick="runIntegrationTest()" id="run-test-btn" class="btn-primary px-6 py-2 rounded-xl font-medium">Run All Steps</button>
+                </div>
+                <div id="test-results" class="space-y-4">
+                    <p class="text-sm text-slate-400">Click the button above to run the full cryptographic integration scenario (HD Wallet -> ECDSA -> ECRECOVER -> ECIES).</p>
+                    <div id="test-progress" class="hidden space-y-3">
+                        <div id="step-1" class="p-3 glass border-white/5 text-sm flex items-center justify-between">
+                            <span>1. HD Wallet: 3 Keys Derived</span>
+                            <span class="status-icon">⏳</span>
+                        </div>
+                        <div id="step-2" class="p-3 glass border-white/5 text-sm flex items-center justify-between">
+                            <span>2. ETH Addresses Created</span>
+                            <span class="status-icon">⏳</span>
+                        </div>
+                        <div id="step-3" class="p-3 glass border-white/5 text-sm flex items-center justify-between">
+                            <span>3. ECDSA Signing (Key 0)</span>
+                            <span class="status-icon">⏳</span>
+                        </div>
+                        <div id="step-4" class="p-3 glass border-white/5 text-sm flex items-center justify-between">
+                            <span>4. Address Recovery (Verify)</span>
+                            <span class="status-icon">⏳</span>
+                        </div>
+                        <div id="step-5" class="p-3 glass border-white/5 text-sm flex items-center justify-between">
+                            <span>5. ECIES Enc/Dec (Key 0-1)</span>
+                            <span class="status-icon">⏳</span>
+                        </div>
+                        <div id="test-summary" class="mt-6 p-4 rounded-xl border border-transparent hidden text-center font-bold"></div>
+                        <div id="test-details" class="mt-4 p-4 glass border-white/5 text-xs font-mono space-y-2 hidden overflow-x-auto"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,6 +309,66 @@
                     resultDiv.classList.add('error-bg', 'text-red-400');
                 }
             } catch (e) { alert('Error verifying proof: ' + e); }
+        }
+
+        async function runIntegrationTest() {
+            const btn = document.getElementById('run-test-btn');
+            const progress = document.getElementById('test-progress');
+            const summary = document.getElementById('test-summary');
+            const details = document.getElementById('test-details');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            progress.classList.remove('hidden');
+            summary.classList.add('hidden');
+            details.classList.add('hidden');
+
+            document.querySelectorAll('.status-icon').forEach(i => i.innerText = '⏳');
+
+            try {
+                const res = await fetch('/integration/test');
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+
+                // Simulate progress for visual effect
+                const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5'];
+                for (let i = 0; i < steps.length; i++) {
+                    await new Promise(r => setTimeout(r, 400));
+                    document.getElementById(steps[i]).querySelector('.status-icon').innerText = '✅';
+                }
+
+                summary.classList.remove('hidden', 'success-bg', 'error-bg');
+                if (data.overall_success) {
+                    summary.innerText = '🎉 Integration Test Passed!';
+                    summary.classList.add('success-bg', 'text-green-400');
+                } else {
+                    summary.innerText = '❌ Integration Test Failed';
+                    summary.classList.add('error-bg', 'text-red-400');
+                }
+
+                details.classList.remove('hidden');
+                details.innerHTML = `
+                    <div class="text-blue-400 mb-1">// Results Overview</div>
+                    <div>Mnemonic: ${data.mnemonic}</div>
+                    <div class="mt-2 text-blue-400">// Addresses</div>
+                    ${data.addresses.map((a, i) => `<div>[${i}] ${a}</div>`).join('')}
+                    <div class="mt-2 text-blue-400">// ECDSA</div>
+                    <div>Recovered: ${data.step4_recovered_address}</div>
+                    <div>Success: ${data.step4_success}</div>
+                    <div class="mt-2 text-blue-400">// ECIES</div>
+                    <div>Decrypted: "${data.step5_decrypted_message}"</div>
+                    <div>Success: ${data.step5_success}</div>
+                `;
+
+            } catch (e) {
+                summary.classList.remove('hidden');
+                summary.innerText = '🚫 Error: ' + e.message;
+                summary.classList.add('error-bg', 'text-red-400');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
         }
     </script>
 </body>

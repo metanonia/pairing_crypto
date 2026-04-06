@@ -48,4 +48,11 @@ pub extern "C" fn Java_pairing_1crypto_Bbs_get_1last_1error<'a>(
     res
 }
 
+/// BBS wrapper
 pub mod bbs;
+
+/// HD Wallet wrapper
+pub mod hwallet;
+
+/// ECIES wrapper
+pub mod ecies;

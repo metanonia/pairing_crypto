@@ -131,6 +131,7 @@ proof, err := bbs.DeriveProof(kp.PublicKey, signature, header, nil, proofMessage
 
 ### 🔬 증명 검증 (Verify Proof)
 ```go
+```go
 revealed := map[int][]byte{
     0: messages[0],
 }
@@ -139,7 +140,67 @@ valid, err := bbs.VerifyProof(kp.PublicKey, proof, header, nil, revealed)
 
 ---
 
-## 🚀 Gin 프레임워크 예제 서버 실행
+## 4. HD Wallet 및 ECIES 사용 예제
+
+신규로 추가된 HD Wallet(BIP32/39/44) 및 ECIES 기능을 Go에서 사용하는 방법입니다.
+
+### 💳 HD Wallet (BIP32/39/44)
+```go
+// 1. 니모닉 생성
+mnemonic, _ := pairing_crypto.GenerateMnemonic()
+
+// 2. 니모닉 + 패스프레이즈로 시드 유도
+seed, _ := pairing_crypto.MnemonicToSeed(mnemonic, "my-password")
+
+// 3. BIP44 경로 기반 개인키 파생 (예: Ethereum)
+path := "m/44'/60'/0'/0/0"
+privKey, _ := pairing_crypto.DerivePrivateKey(seed, path)
+
+// 4. 공개키로부터 이더리움 주소 생성
+// (개인키로부터 공개키를 얻는 과정은 ECIES API 활용 가능)
+kp, _ := pairing_crypto.EciesKeypairFromBytes(privKey)
+address, _ := pairing_crypto.EthAddressFromPubkey(kp.PublicKey)
+fmt.Printf("Ethereum Address: %s\n", address)
+
+// 5. ECDSA 서명 및 주소 복구 (ecrecover)
+message := []byte("Integration test message")
+signature, _ := pairing_crypto.SignEcdsaEth(privKey, message)
+recoveredAddr, _ := pairing_crypto.RecoverEthAddress(message, signature)
+fmt.Printf("Recovered Address: %s (Match: %v)\n", recoveredAddr, recoveredAddr == address)
+```
+
+### 🔒 ECIES (secp256k1 암호화)
+```go
+// 1. 개인키(32바이트)로부터 ECIES 키쌍 복구
+keyPair, _ := pairing_crypto.EciesKeypairFromBytes(privKey)
+
+// 2. 공개키로 암호화
+msg := []byte("비밀 메시지")
+encrypted, _ := pairing_crypto.EciesEncrypt(keyPair.PublicKey, msg)
+
+// 3. 개인키로 복호화
+decrypted, _ := pairing_crypto.EciesDecrypt(keyPair.SecretKey, encrypted)
+fmt.Println(string(decrypted)) // "비밀 메시지"
+```
+
+---
+
+## 5. 종합 통합 테스트 시나리오 (5-Step)
+
+`pairing_crypto` 라이브러리의 모든 기능(HD Wallet, ECDSA, ECIES)을 유기적으로 연결하여 검증하는 표준 시나리오입니다.
+
+1.  **키 쌍 파생**: 동일한 니모닉 시드로부터 BIP44 경로(m/44'/60'/0'/0/i)를 따라 3개의 키 쌍을 생성합니다.
+2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소를 도출합니다.
+3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 임의의 메시지에 서명합니다.
+4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소를 복구(ecrecover)하여 2단계에서 생성한 주소와 일치하는지 확인합니다.
+5.  **ECIES 통신**: 첫 번째 키(index 0)와 두 번째 키(index 1) 간에 암호화 및 복호화를 수행하여 데이터 무결성을 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `wrappers/go/example/main.go`의 `/integration/test` 엔드포인트를 참고하세요.
+
+---
+
+## 6. Gin 프레임워크 예제 서버 실행
 
 `wrappers/go/example` 디렉토리에는 Next.js 데모와 동일한 기능을 수행하는 REST API 서버가 구현되어 있습니다.
 
@@ -161,6 +222,7 @@ go run main.go
 - `POST /verify`: 서명 검증
 - `POST /proof/derive`: 영지식 증명 생성 (선택적 공개)
 - `POST /proof/verify`: 증명 검증
+- `GET /integration/test`: 5단계 통합 테스트 시나리오 실행 및 결과 반환
 
 ---
 

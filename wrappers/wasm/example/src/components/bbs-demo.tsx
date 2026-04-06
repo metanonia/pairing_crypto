@@ -31,11 +31,26 @@ export default function BbsDemo() {
   const [revealedIndices, setRevealedIndices] = useState<number[]>([0]);
   const [proof, setProof] = useState<Uint8Array | null>(null);
   const [status, setStatus] = useState<{ type: "idle" | "success" | "error"; message: string }>({ 
-    type: "idle", 
     message: "" 
   });
+  const [integrationResults, setIntegrationResults] = useState<{
+    isRunning: boolean;
+    steps: { name: string; status: "pending" | "success" | "error" }[];
+    details?: any;
+  }>({
+    isRunning: false,
+    steps: [
+      { name: "HD Wallet: 3 Keys Derived", status: "pending" },
+      { name: "ETH Addresses Created", status: "pending" },
+      { name: "ECDSA Signing (Key 0)", status: "pending" },
+      { name: "Address Recovery (Verify)", status: "pending" },
+      { name: "ECIES Enc/Dec (Key 0-1)", status: "pending" },
+    ]
+  });
 
-  // Flutter (main.dart) 및 bbs_simple.rs와 동일한 상수값 설정
+  const fullPkgRef = useRef<any>(null);
+  const hwalletRef = useRef<any>(null);
+  const eciesRef = useRef<any>(null);
   const EXAMPLE_IKM = new TextEncoder().encode("only_for_example_not_A_random_seed_at_Allllllllll");
   const EXAMPLE_KEY_INFO = new TextEncoder().encode("example-key-info");
   const EXAMPLE_HEADER = new TextEncoder().encode("example-header");
@@ -46,6 +61,7 @@ export default function BbsDemo() {
       try {
         console.log("Initializing WASM module...");
         const pkg = await import("@mattrglobal/pairing-crypto");
+        fullPkgRef.current = pkg;
         bbsRef.current = pkg.bbs;
         setIsLoaded(true);
         console.log("WASM module initialized successfully.");
@@ -197,6 +213,86 @@ export default function BbsDemo() {
     setRevealedIndices(prev => 
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
+  };
+
+  const runIntegrationTest = async () => {
+    if (!fullPkgRef.current) return;
+    
+    setIntegrationResults(prev => ({
+      ...prev,
+      isRunning: true,
+      steps: prev.steps.map(s => ({ ...s, status: "pending" })),
+      details: undefined
+    }));
+
+    const pkg = fullPkgRef.current;
+    const updateStep = (index: number, status: "success" | "error") => {
+      setIntegrationResults(prev => ({
+        ...prev,
+        steps: prev.steps.map((s, i) => i === index ? { ...s, status } : s)
+      }));
+    };
+
+    try {
+      // 1. HD Wallet: 3 Keys Derived
+      const mnemonic = pkg.hwallet_generate_mnemonic();
+      const seed = pkg.hwallet_mnemonic_to_seed(mnemonic, "");
+      
+      const privKeys: Uint8Array[] = [];
+      const addresses: string[] = [];
+      
+      for (let i = 0; i < 3; i++) {
+        const path = `m/44'/60'/0'/0/${i}`;
+        const sk = pkg.hwallet_derive_private_key(seed, path);
+        privKeys.push(new Uint8Array(sk));
+        
+        // 2. ETH Addresses Created
+        const kp = pkg.ecies_keypair_from_bytes(sk);
+        const addr = pkg.hwallet_eth_address_from_pubkey(kp.public_key);
+        addresses.push(addr);
+      }
+      updateStep(0, "success");
+      updateStep(1, "success");
+
+      // 3. ECDSA Signing (Key 0)
+      const message = new TextEncoder().encode("Integration test message");
+      const signature = pkg.hwallet_sign_ecdsa_eth(privKeys[0], message);
+      updateStep(2, "success");
+
+      // 4. Address Recovery (Verify)
+      const recoveredAddr = pkg.hwallet_recover_eth_address(message, signature);
+      const step4Success = recoveredAddr === addresses[0];
+      if (!step4Success) throw new Error("Recovered address mismatch");
+      updateStep(3, "success");
+
+      // 5. ECIES Enc/Dec (Key 0-1)
+      const kp1 = pkg.ecies_keypair_from_bytes(privKeys[1]);
+      const secretMsg = new TextEncoder().encode("Secret ECIES message");
+      const encrypted = pkg.ecies_encrypt(kp1.public_key, secretMsg);
+      const decrypted = pkg.ecies_decrypt(privKeys[1], encrypted);
+      const decryptedStr = new TextDecoder().decode(decrypted);
+      const step5Success = decryptedStr === "Secret ECIES message";
+      if (!step5Success) throw new Error("ECIES decryption failed");
+      updateStep(4, "success");
+
+      setIntegrationResults(prev => ({
+        ...prev,
+        isRunning: false,
+        details: {
+          mnemonic,
+          addresses,
+          recoveredAddr,
+          decryptedStr,
+          success: true
+        }
+      }));
+      setStatus({ type: "success", message: "5단계 통합 테스트가 성공적으로 완료되었습니다!" });
+
+    } catch (err: any) {
+      console.error("Integration test failed:", err);
+      setIntegrationResults(prev => ({ ...prev, isRunning: false }));
+      setStatus({ type: "error", message: `통합 테스트 실패: ${err.message}` });
+    }
   };
 
   if (!isLoaded) {
@@ -354,6 +450,74 @@ export default function BbsDemo() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* New Step 4: Full Integration Test */}
+        <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6 border border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <RefreshCcw className={cn("w-6 h-6 text-primary", integrationResults.isRunning && "animate-spin")} />
+              <h2 className="text-2xl font-bold">4. 종합 통합 테스트 (5-Step Integration)</h2>
+            </div>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            BBS 이후 시나리오를 확장하여 HD Wallet 파생, ETH 주소 생성, ECDSA 서명/복구 및 ECIES 암/복호화 프로세스를 순차적으로 검증합니다.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              {integrationResults.steps.map((step, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-background/50 border border-border rounded-xl">
+                  <span className="text-sm font-medium">{i + 1}. {step.name}</span>
+                  {step.status === "success" ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  ) : step.status === "error" ? (
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  )}
+                </div>
+              ))}
+              
+              <button 
+                onClick={runIntegrationTest}
+                disabled={integrationResults.isRunning}
+                className="w-full mt-4 py-4 bg-primary hover:bg-accent transition-all rounded-xl font-bold text-lg disabled:opacity-50 shadow-xl shadow-primary/20"
+              >
+                통합 테스트 실행 (BBS 이후 추가 시나리오)
+              </button>
+            </div>
+
+            <div className="glass-card bg-background/30 p-4 rounded-xl border border-border min-h-[200px] font-mono text-[10px] leading-relaxed overflow-y-auto max-h-[300px]">
+              {integrationResults.details ? (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-primary font-bold mb-1">// HD Wallet</div>
+                    <div>Mnemonic: {integrationResults.details.mnemonic}</div>
+                    <div className="mt-2">Derived Addresses:</div>
+                    {integrationResults.details.addresses.map((a: string, i: number) => (
+                      <div key={i} className={cn("pl-4", i === 0 && "text-green-400")}>{i}: {a} {i === 0 && "(Target)"}</div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="text-primary font-bold mb-1">// ECDSA Recovery</div>
+                    <div>Recovered Address: <span className="text-green-400">{integrationResults.details.recoveredAddr}</span></div>
+                    <div>Result: <span className="text-green-400">MATCHED ✅</span></div>
+                  </div>
+                  <div>
+                    <div className="text-primary font-bold mb-1">// ECIES Verification</div>
+                    <div>Decrypted Msg: <span className="text-blue-400">"{integrationResults.details.decryptedStr}"</span></div>
+                    <div>Integrity: <span className="text-green-400">VERIFIED ✅</span></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground italic">
+                  테스트를 실행하면 결과 데이터가 이곳에 표시됩니다.
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       </div>
     </div>

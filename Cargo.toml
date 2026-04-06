@@ -24,6 +24,11 @@ group = "0.12.0"
 rand = { version = "0.8", features = ["getrandom"] }
 getrandom = { version = "0.2", optional = true, features = ["js"] }
 rand_core = "0.6"
+bip39 = "2.0"
+bip32 = "0.5"
+ecies = "0.2"
+secp256k1 = { version = "0.28", features = ["rand", "recovery"] }
+hex = "0.4"
 pairing = "0.22.0"
 blstrs = { git = "https://github.com/mattrglobal/blstrs.git", rev = "a0cb960", version = "0.6.1" }
 serde = { version = "1.0", features = ["derive"] }
