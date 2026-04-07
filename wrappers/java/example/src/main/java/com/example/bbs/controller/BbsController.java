@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.HexFormat;
 
 @RestController
-@RequestMapping("/api/bbs")
+@RequestMapping("/")
 @RequiredArgsConstructor
 public class BbsController {
 

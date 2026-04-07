@@ -72,7 +72,12 @@ export default function BbsDemo() {
         fullPkgRef.current = pkg;
         bbsRef.current = pkg.bbs;
         setIsLoaded(true);
-        console.log("WASM module initialized successfully.", Object.keys(pkg));
+        console.log("WASM module keys:", Object.keys(pkg));
+        console.log("WASM hwallet exports check:", {
+          generate: typeof pkg.hwallet_generate_mnemonic,
+          seed: typeof pkg.hwallet_mnemonic_to_seed,
+          derive: typeof pkg.hwallet_derive_private_key
+        });
       } catch (err) {
         console.error("WASM loading failed:", err);
         setStatus({ type: "error", message: "WASM 라이브러리를 로드하지 못했습니다. 콘솔을 확인해 주세요." });
@@ -297,9 +302,10 @@ export default function BbsDemo() {
       setStatus({ type: "success", message: "5단계 통합 테스트 성공!" });
 
     } catch (err: any) {
-      console.error("Integration test failed:", err);
+      console.error("Integration test detailed error:", err);
       setIntegrationResults(prev => ({ ...prev, isRunning: false }));
-      setStatus({ type: "error", message: `통합 테스트 실패: ${err.message}` });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setStatus({ type: "error", message: `Error: ${errorMsg}` });
     }
   };
 

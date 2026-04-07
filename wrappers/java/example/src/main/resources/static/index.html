@@ -3,260 +3,427 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BBS Signature Demo - Spring Boot</title>
+    <title>BBS Cryptography Demo - Spring Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0c0c0e; color: #e2e8f0; }
-        .glass-card { background: rgba(30, 30, 35, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .gradient-text { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top left, #1e293b, #0f172a);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px #6366f1;
+        }
+        .input-field {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px;
+            color: #f1f5f9;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .input-field:focus {
+            border-color: #6366f1;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .success-bg { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3); }
+        .error-bg { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+        .step-card { transition: all 0.3s ease; }
+        .step-card.active { border-color: rgba(99, 102, 241, 0.5); background: rgba(99, 102, 241, 0.05); }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
-    <div class="max-w-5xl mx-auto space-y-10">
-        <!-- Header -->
-        <header class="text-center space-y-4 pt-10 animate-fade-in">
-            <div class="inline-flex items-center px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-bold uppercase tracking-widest mb-2">
-                Spring Boot & JNI
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-12">
+            <div class="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+                Spring Boot & JNI Edition
             </div>
-            <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight">
-                BBS <span class="gradient-text">Signatures</span>
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                BBS Cryptography
             </h1>
-            <p class="text-slate-400 max-w-2xl mx-auto">
-                BBS 서명 알고리즘의 모든 기능을 Spring Boot 백엔드와 JNI를 통해 구현하였습니다.<br>
-                익명성과 선택적 공개를 직접 체험해 보세요.
-            </p>
+            <p class="text-slate-400">Zero-Knowledge Proofs & HD Wallet Integration</p>
         </header>
 
-        <!-- Main Content -->
-        <main class="grid grid-cols-1 md:grid-cols-12 gap-8">
-            
-            <!-- Left: Key & Sign -->
-            <div class="md:col-span-5 space-y-8 animate-fade-in" style="animation-delay: 0.1s;">
-                <!-- Section 1: Keys -->
-                <section class="glass-card p-6 rounded-2xl space-y-4">
-                    <h2 class="text-xl font-bold flex items-center gap-2">
-                        <span class="w-2 h-6 bg-indigo-500 rounded-full"></span>
-                        1. 키 관리 (Key Management)
-                    </h2>
-                    <button id="btnGenKey" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 transition-all rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20">
-                        <span>신규 키 쌍 생성</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    </button>
-                    <div class="space-y-2">
-                        <label class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">공개키 (Public Key)</label>
-                        <div id="displayPubKey" class="p-3 bg-black/40 rounded-lg text-[10px] font-mono break-all border border-white/5 opacity-70 min-h-[40px]">
-                            먼저 키를 생성해 주세요.
+        <!-- Main Card -->
+        <div class="glass p-6 md:p-8 shadow-2xl mb-8">
+            <!-- Tabs -->
+            <div class="flex space-x-4 mb-8 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
+                <button onclick="showTab('keygen')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition active" id="btn-keygen">Key Generation</button>
+                <button onclick="showTab('sign')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-sign">Signing</button>
+                <button onclick="showTab('proof')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-proof">ZKP & Disclosure</button>
+                <button onclick="showTab('integration')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-integration">Integration Test</button>
+            </div>
+
+            <!-- KeyGen Tab -->
+            <div id="tab-keygen" class="tab-content active space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold">Generate BBS Keys</h2>
+                    <button onclick="generateKeys()" class="btn-primary px-6 py-2 rounded-xl font-medium">Generate New Pair</button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Public Key (Hex)</label>
+                        <textarea id="pubkey-display" readonly class="input-field h-24 font-mono text-xs opacity-70" placeholder="Generated public key will appear here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign Tab -->
+            <div id="tab-sign" class="tab-content space-y-6">
+                <h2 class="text-xl font-semibold">Sign Multiple Messages</h2>
+                <div class="space-y-4">
+                    <div id="messages-container" class="space-y-2">
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Messages to Sign</label>
+                        <input type="text" class="input-field msg-input" value="User ID: 12345">
+                        <input type="text" class="input-field msg-input" value="Credit Score: 750">
+                        <input type="text" class="input-field msg-input" value="Nationality: Korea">
+                    </div>
+                    <button onclick="addMessageField()" class="text-sm text-indigo-400 hover:text-indigo-300 font-medium">+ Add another message</button>
+                    
+                    <div class="pt-4 border-t border-white/5">
+                        <button onclick="signMessages()" class="btn-primary w-full py-3 rounded-xl font-semibold">Generate Multi-Message Signature</button>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">BBS Signature (Hex)</label>
+                        <textarea id="signature-display" readonly class="input-field h-20 font-mono text-xs opacity-70" placeholder="Signature will appear here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proof Tab -->
+            <div id="tab-proof" class="tab-content space-y-6">
+                <h2 class="text-xl font-semibold">Selective Disclosure (ZKP)</h2>
+                <p class="text-sm text-slate-400 italic">Select which messages to reveal. The verifier won't see the others.</p>
+                
+                <div id="disclosure-container" class="space-y-3">
+                    <!-- Dynamic disclosure toggles -->
+                </div>
+
+                <div class="pt-4 flex space-x-4">
+                    <button onclick="deriveProof()" class="btn-primary flex-1 py-3 rounded-xl font-semibold">Derive Proof</button>
+                    <button onclick="verifyProof()" class="bg-white/10 hover:bg-white/20 flex-1 py-3 rounded-xl font-semibold transition">Verify Proof</button>
+                </div>
+
+                <div id="proof-result" class="p-4 rounded-xl border border-transparent hidden text-center font-medium"></div>
+                
+                <div>
+                    <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Proof Data (Hex)</label>
+                    <textarea id="proof-display" readonly class="input-field h-32 font-mono text-xs opacity-70" placeholder="Derived proof will appear here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Integration Tab -->
+            <div id="tab-integration" class="tab-content space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold">5-Step Integration Test</h2>
+                    <button onclick="runIntegrationTest()" id="run-test-btn" class="btn-primary px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20">Run All Steps</button>
+                </div>
+                
+                <div id="test-results" class="space-y-4">
+                    <p class="text-sm text-slate-400">This scenario validates HD Wallet derivation, BIP44 paths, ECDSA signing, and ECIES encrypted communication.</p>
+                    
+                    <div id="test-progress" class="hidden space-y-3">
+                        <div id="step-1" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">01</span>
+                                <span>HD Wallet: 3 Keys Derived (BIP44)</span>
+                            </div>
+                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
+                        </div>
+                        <div id="step-2" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">02</span>
+                                <span>ETH Addresses Created</span>
+                            </div>
+                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
+                        </div>
+                        <div id="step-3" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">03</span>
+                                <span>ECDSA Signing (Key Index 0)</span>
+                            </div>
+                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
+                        </div>
+                        <div id="step-4" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">04</span>
+                                <span>Address Recovery (ecrecover)</span>
+                            </div>
+                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
+                        </div>
+                        <div id="step-5" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">05</span>
+                                <span>ECIES Encryption/Decryption</span>
+                            </div>
+                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
+                        </div>
+
+                        <!-- Detailed Result Display Area -->
+                        <div id="test-summary" class="mt-8 p-4 rounded-2xl border border-transparent hidden text-center font-bold text-lg"></div>
+                        
+                        <div id="test-details" class="mt-4 p-6 glass border-white/5 text-[11px] font-mono space-y-4 hidden overflow-x-auto custom-scrollbar">
+                            <!-- Dynamic content from runIntegrationTest -->
                         </div>
                     </div>
-                </section>
-
-                <!-- Section 2: Messages & Sign -->
-                <section class="glass-card p-6 rounded-2xl space-y-4">
-                    <h2 class="text-xl font-bold flex items-center gap-2">
-                        <span class="w-2 h-6 bg-purple-500 rounded-full"></span>
-                        2. 메시지 및 서명
-                    </h2>
-                    <div id="messageList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                        <!-- Messages added here -->
-                    </div>
-                    <div class="flex gap-2">
-                        <input id="inputMsg" type="text" placeholder="새 메시지..." class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-colors">
-                        <button id="btnAddMsg" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 pt-2">
-                        <button id="btnSign" disabled class="py-3 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl font-bold hover:bg-indigo-500/30 transition-all disabled:opacity-30">서명 생성</button>
-                        <button id="btnVerify" disabled class="py-3 bg-slate-800 border border-white/5 rounded-xl font-bold hover:bg-slate-700 transition-all disabled:opacity-30">서명 검증</button>
-                    </div>
-                </section>
+                </div>
             </div>
+        </div>
 
-            <!-- Right: Selective Disclosure -->
-            <div class="md:col-span-7 space-y-8 animate-fade-in" style="animation-delay: 0.2s;">
-                <section class="glass-card p-8 rounded-3xl space-y-6 h-full border-indigo-500/10">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-2xl font-black italic tracking-tighter">SELECTIVE DISCLOSURE</h2>
-                        <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-bold">Zero-Knowledge Proof</span>
-                    </div>
-
-                    <p class="text-sm text-slate-400">공개(Reveal)할 메시지를 선택한 후 증명(Proof)을 생성하세요. 검증자는 선택되지 않은 메시지를 알 수 없습니다.</p>
-
-                    <div id="revealList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-[140px]">
-                        <!-- Selectable messages here -->
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row gap-4 pt-4 border-t border-white/5">
-                        <button id="btnDeriveProof" disabled class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl font-bold text-lg hover:brightness-110 shadow-xl shadow-indigo-600/20 transition-all disabled:opacity-30">증명 생성 (Proof)</button>
-                        <button id="btnVerifyProof" disabled class="flex-1 py-4 bg-slate-800 border border-white/5 rounded-2xl font-bold text-lg hover:bg-slate-700 transition-all disabled:opacity-30">증명 검증</button>
-                    </div>
-
-                    <div id="statusArea" class="hidden p-4 rounded-xl text-center font-bold text-sm">
-                        <!-- Status message here -->
-                    </div>
-                </section>
-            </div>
-        </main>
-
-        <!-- Footer -->
-        <footer class="text-center text-slate-600 text-xs pb-10">
-            &copy; 2026 Pairing Crypto Project - Spring Boot Example
+        <footer class="mt-20 text-center text-slate-600 text-xs pb-10">
+            &copy; 2026 Pairing Crypto Project - Powered by Rust & Spring Boot JNI
         </footer>
     </div>
 
     <script>
-        // State
-        let keys = null;
-        let messages = ["Example Message #1", "Example Message #2", "Confidential Data#3"];
-        let signature = null;
-        let revealedIndices = new Set([0]);
-        let proof = null;
-
-        const hex = {
-            format: b => Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('')
+        let currentState = {
+            publicKey: '',
+            secretKey: '',
+            signature: '',
+            messages: [],
+            proof: ''
         };
 
-        // UI Components
-        const displayPubKey = document.getElementById('displayPubKey');
-        const messageList = document.getElementById('messageList');
-        const revealList = document.getElementById('revealList');
-        const statusArea = document.getElementById('statusArea');
-        const btnSign = document.getElementById('btnSign');
-        const btnVerify = document.getElementById('btnVerify');
-        const btnDeriveProof = document.getElementById('btnDeriveProof');
-        const btnVerifyProof = document.getElementById('btnVerifyProof');
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-indigo-600', 'text-white', 'bg-white/5'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('bg-indigo-600', 'text-white');
 
-        function updateUI() {
-            // Messages
-            messageList.innerHTML = messages.map((m, i) => `
-                <div class="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5 group">
-                    <span class="text-sm truncate">${m}</span>
-                    <button onclick="removeMsg(${i})" class="text-slate-600 hover:text-red-400 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                </div>
-            `).join('');
-
-            // Disclosure
-            revealList.innerHTML = messages.map((m, i) => `
-                <button onclick="toggleReveal(${i})" class="p-4 rounded-2xl border transition-all flex flex-col gap-1 text-left ${revealedIndices.has(i) ? 'bg-indigo-500/10 border-indigo-500/40 text-white' : 'bg-black/20 border-white/5 text-slate-500'}">
-                    <span class="text-[10px] uppercase font-black opacity-50">${revealedIndices.has(i) ? 'REVEAL' : 'HIDDEN'}</span>
-                    <span class="text-sm font-semibold truncate w-full">${m}</span>
-                </button>
-            `).join('');
-
-            // Buttons
-            btnSign.disabled = !keys;
-            btnVerify.disabled = !signature;
-            btnDeriveProof.disabled = !signature;
-            btnVerifyProof.disabled = !proof;
+            if (tabId === 'proof') updateDisclosureUI();
         }
 
-        function showStatus(msg, isError) {
-            statusArea.textContent = msg;
-            statusArea.classList.remove('hidden', 'bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400');
-            statusArea.classList.add(isError ? 'bg-red-500/20' : 'bg-emerald-500/20', isError ? 'text-red-400' : 'text-emerald-400');
-            statusArea.classList.add('animate-fade-in');
+        function addMessageField() {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input-field msg-input mt-2';
+            input.placeholder = 'Enter message...';
+            document.getElementById('messages-container').appendChild(input);
         }
 
-        // API Calls
-        async function api(path, method = 'GET', body = null) {
-            const res = await fetch('/api/bbs' + path, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: body ? JSON.stringify(body) : null
+        async function generateKeys() {
+            try {
+                const res = await fetch('/keys');
+                const data = await res.json();
+                currentState.publicKey = data.publicKey;
+                currentState.secretKey = data.secretKey;
+                document.getElementById('pubkey-display').value = data.publicKey;
+            } catch (e) { alert('Error generating keys: ' + e); }
+        }
+
+        async function signMessages() {
+            if (!currentState.publicKey) return alert('Please generate keys first');
+            
+            const inputs = document.querySelectorAll('.msg-input');
+            currentState.messages = Array.from(inputs).map(i => i.value).filter(v => v !== '');
+
+            try {
+                const res = await fetch('/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secretKey: currentState.secretKey,
+                        publicKey: currentState.publicKey,
+                        messages: currentState.messages
+                    })
+                });
+                const data = await res.json();
+                currentState.signature = data.signature;
+                document.getElementById('signature-display').value = data.signature;
+            } catch (e) { alert('Error signing: ' + e); }
+        }
+
+        function updateDisclosureUI() {
+            const container = document.getElementById('disclosure-container');
+            container.innerHTML = '';
+            currentState.messages.forEach((msg, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5';
+                div.innerHTML = `
+                    <span class="text-sm truncate mr-4">"${msg}"</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" data-index="${idx}" class="sr-only peer reveal-toggle" checked>
+                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <span class="ml-3 text-xs text-slate-400">Reveal</span>
+                    </label>
+                `;
+                container.appendChild(div);
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            return data;
         }
 
-        document.getElementById('btnGenKey').onclick = async () => {
+        async function deriveProof() {
+            if (!currentState.signature) return alert('Please sign messages first');
+            
+            const toggles = document.querySelectorAll('.reveal-toggle');
+            const messagesForProof = currentState.messages.map((m, i) => ({
+                value: m,
+                reveal: toggles[i].checked
+            }));
+
             try {
-                keys = await api('/keys');
-                displayPubKey.textContent = keys.publicKey;
-                showStatus("새 BBS 키 쌍이 생성되었습니다.", false);
-                updateUI();
-            } catch (e) { showStatus(e.message, true); }
-        };
-
-        function removeMsg(i) {
-            messages.splice(i, 1);
-            if(revealedIndices.has(i)) revealedIndices.delete(i);
-            updateUI();
+                const res = await fetch('/proof/derive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: currentState.publicKey,
+                        signature: currentState.signature,
+                        messages: messagesForProof
+                    })
+                });
+                const data = await res.json();
+                currentState.proof = data.proof;
+                document.getElementById('proof-display').value = data.proof;
+            } catch (e) { alert('Error deriving proof: ' + e); }
         }
 
-        document.getElementById('btnAddMsg').onclick = () => {
-            const input = document.getElementById('inputMsg');
-            if(input.value) {
-                messages.push(input.value);
-                input.value = '';
-                updateUI();
+        async function verifyProof() {
+            if (!currentState.proof) return alert('Please derive proof first');
+            
+            const toggles = document.querySelectorAll('.reveal-toggle');
+            const revealedMessages = {};
+            toggles.forEach((t, i) => {
+                if (t.checked) revealedMessages[i] = currentState.messages[i];
+            });
+
+            try {
+                const res = await fetch('/proof/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: currentState.publicKey,
+                        proof: currentState.proof,
+                        revealedMessages: revealedMessages
+                    })
+                });
+                const data = await res.json();
+                const resultDiv = document.getElementById('proof-result');
+                resultDiv.classList.remove('hidden', 'success-bg', 'error-bg');
+                
+                if (data.valid) {
+                    resultDiv.innerText = '✅ Proof Verified Successfully!';
+                    resultDiv.classList.add('success-bg', 'text-green-400');
+                } else {
+                    resultDiv.innerText = '❌ Proof Verification Failed';
+                    resultDiv.classList.add('error-bg', 'text-red-400');
+                }
+            } catch (e) { alert('Error verifying proof: ' + e); }
+        }
+
+        async function runIntegrationTest() {
+            const btn = document.getElementById('run-test-btn');
+            const progress = document.getElementById('test-progress');
+            const summary = document.getElementById('test-summary');
+            const details = document.getElementById('test-details');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            progress.classList.remove('hidden');
+            summary.classList.add('hidden');
+            details.classList.add('hidden');
+
+            document.querySelectorAll('.status-icon').forEach(i => {
+                i.innerText = '⏳';
+                i.classList.remove('text-green-400', 'text-red-400');
+            });
+            document.querySelectorAll('.step-card').forEach(c => c.classList.remove('active', 'border-green-500/30', 'border-red-500/30'));
+
+            try {
+                // Fixed path to match IntegrationController
+                const res = await fetch('/integration/test');
+                if (res.status === 404) throw new Error("Endpoint /integration/test not found. Did you update the Spring Controller?");
+                
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                // Elegant Step-by-Step UI Update
+                const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5'];
+                for (let i = 0; i < steps.length; i++) {
+                    const stepEl = document.getElementById(steps[i]);
+                    stepEl.classList.add('active');
+                    await new Promise(r => setTimeout(r, 600));
+                    stepEl.querySelector('.status-icon').innerText = '✅';
+                    stepEl.querySelector('.status-icon').classList.add('text-green-400');
+                    stepEl.classList.remove('active');
+                    stepEl.classList.add('border-green-500/30');
+                }
+
+                summary.classList.remove('hidden', 'success-bg', 'error-bg');
+                if (data.overall_success) {
+                    summary.innerText = '🎉 5-Step Integration Test Passed!';
+                    summary.classList.add('success-bg', 'text-green-400');
+                } else {
+                    summary.innerText = '❌ Integration Test Partial Failure';
+                    summary.classList.add('error-bg', 'text-red-400');
+                }
+
+                details.classList.remove('hidden');
+                details.innerHTML = `
+                    <div class="bg-indigo-500/10 p-3 rounded-lg border border-indigo-500/20 mb-4">
+                        <span class="text-indigo-400 font-bold block mb-1">🔑 BIP39 Mnemonic Seed</span>
+                        <span class="text-slate-200">${data.mnemonic}</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white/5 p-3 rounded-lg border border-white/5">
+                            <span class="text-slate-400 font-bold block mb-2 text-[9px] uppercase tracking-widest">Derived ETH Addresses</span>
+                            ${data.addresses.map((a, i) => `<div class="mb-1 ${i===0 ? 'text-blue-400' : 'text-slate-400'}">[${i}] ${a}</div>`).join('')}
+                        </div>
+                        <div class="bg-white/5 p-3 rounded-lg border border-white/5">
+                            <span class="text-slate-400 font-bold block mb-2 text-[9px] uppercase tracking-widest">ECDSA / ECRECOVER</span>
+                            <div class="flex flex-col gap-1">
+                                <div><span class="text-slate-500 italic">Signature:</span> <span class="text-[9px] break-all">${data.step3_signature.substring(0, 40)}...</span></div>
+                                <div><span class="text-slate-500 italic">Recovered:</span> <span class="text-blue-400">${data.step4_recovered_address}</span></div>
+                                <div class="font-bold ${data.step4_success ? 'text-green-400' : 'text-red-400'}">${data.step4_success ? 'MATCH SUCCESS' : 'MATCH FAILED'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 bg-white/5 p-3 rounded-lg border border-white/5">
+                        <span class="text-slate-400 font-bold block mb-2 text-[9px] uppercase tracking-widest">ECIES Communication (Index 0 -> 1)</span>
+                        <div><span class="text-slate-500 italic">Target Message:</span> "Secret ECIES message"</div>
+                        <div><span class="text-slate-500 italic">Decrypted Result:</span> <span class="text-purple-400 font-bold">"${data.step5_decrypted_message}"</span></div>
+                        <div class="font-bold ${data.step5_success ? 'text-green-400' : 'text-red-400'}">${data.step5_success ? 'DECRYPTION SUCCESS' : 'DECRYPTION FAILED'}</div>
+                    </div>
+                `;
+
+            } catch (e) {
+                summary.classList.remove('hidden');
+                summary.innerText = '🚫 Error: ' + e.message;
+                summary.classList.add('error-bg', 'text-red-400');
+                // Mark failed steps
+                document.querySelectorAll('.status-icon').forEach(i => {
+                    if (i.innerText === '⏳') {
+                        i.innerText = '❌';
+                        i.classList.add('text-red-400');
+                    }
+                });
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
             }
-        };
-
-        function toggleReveal(i) {
-            if(revealedIndices.has(i)) revealedIndices.delete(i);
-            else revealedIndices.add(i);
-            updateUI();
         }
-
-        btnSign.onclick = async () => {
-            try {
-                const res = await api('/sign', 'POST', {
-                    secretKey: keys.secretKey,
-                    publicKey: keys.publicKey,
-                    messages: messages
-                });
-                signature = res.signature;
-                showStatus("메시지 서명이 완료되었습니다.", false);
-                updateUI();
-            } catch (e) { showStatus(e.message, true); }
-        };
-
-        btnVerify.onclick = async () => {
-            try {
-                const res = await api('/verify', 'POST', {
-                    publicKey: keys.publicKey,
-                    signature: signature,
-                    messages: messages
-                });
-                showStatus(res.valid ? "서명 검증에 성공하였습니다!" : "서명 검증에 실패하였습니다.", !res.valid);
-            } catch (e) { showStatus(e.message, true); }
-        };
-
-        btnDeriveProof.onclick = async () => {
-            try {
-                const res = await api('/proof/derive', 'POST', {
-                    publicKey: keys.publicKey,
-                    signature: signature,
-                    messages: messages.map((m, i) => ({ value: m, reveal: revealedIndices.has(i) }))
-                });
-                proof = res.proof;
-                showStatus("영지식 증명(Proof)이 생성되었습니다.", false);
-                updateUI();
-            } catch (e) { showStatus(e.message, true); }
-        };
-
-        btnVerifyProof.onclick = async () => {
-            try {
-                const revealed = {};
-                revealedIndices.forEach(idx => { revealed[idx] = messages[idx]; });
-                const res = await api('/proof/verify', 'POST', {
-                    publicKey: keys.publicKey,
-                    proof: proof,
-                    revealedMessages: revealed
-                });
-                showStatus(res.valid ? "증명 검증 성공! (선택적 공개 확인됨)" : "증명 검증에 실패하였습니다.", !res.valid);
-            } catch (e) { showStatus(e.message, true); }
-        };
-
-        updateUI();
+        
+        // Initialize
+        showTab('keygen');
     </script>
 </body>
 </html>

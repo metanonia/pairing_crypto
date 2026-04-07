@@ -15,12 +15,12 @@ public class Ecies {
     
     public static KeyPair generateKeyPairFromBytes(byte[] privkey) throws Exception {
         byte[] skOut = new byte[32];
-        byte[] pkOut = new byte[65]; // Uncompressed or what size? 65 usually.
+        byte[] pkOut = new byte[65]; // Uncompressed secp256k1 public key
         int res = keypairFromBytes(privkey, skOut, pkOut);
         if (res != 0) throw new Exception("Failed to generate keypair from bytes");
         return new KeyPair(skOut, pkOut);
     }
 
-    public static native byte[] encrypt(byte[] uncompressedPubkey, byte[] msg);
-    public static native byte[] decrypt(byte[] privkey, byte[] cipher);
+    public static native int encrypt(byte[] uncompressedPubkey, byte[] msg, byte[] encOut);
+    public static native int decrypt(byte[] privkey, byte[] cipher, byte[] decOut);
 }

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/integration")
+@RequestMapping("/integration")
 @RequiredArgsConstructor
 public class IntegrationController {
 
@@ -25,18 +25,18 @@ public class IntegrationController {
         try {
             // 1. 키 쌍 생성 (동일 시드에서 3개)
             String mnemonic = HWallet.generateMnemonic();
-            byte[] seed = new byte[64];
+            byte[] seed = new byte[64]; // BIP39 seed for 512-bit is 64 bytes
             int seedRes = HWallet.mnemonicToSeed(mnemonic, "", seed);
-            if (seedRes != 0) throw new Exception("Mnemonic to Seed failed");
+            if (seedRes != 0) throw new Exception("Mnemonic to Seed failed (Error: " + seedRes + ")");
 
             List<byte[]> privKeys = new ArrayList<>();
             List<String> addresses = new ArrayList<>();
 
             for (int i = 0; i < 3; i++) {
                 String path = String.format("m/44'/60'/0'/0/%d", i);
-                byte[] sk = new byte[32];
+                byte[] sk = new byte[32]; // Secp256k1 private key is 32 bytes
                 int deriveRes = HWallet.derivePrivateKey(seed, path, sk);
-                if (deriveRes != 0) throw new Exception("Derive Private Key failed at index " + i);
+                if (deriveRes != 0) throw new Exception("Derive Private Key failed at index " + i + " (Error: " + deriveRes + ")");
                 privKeys.add(sk);
 
                 // 2. 이더리움 주소 생성
@@ -47,9 +47,9 @@ public class IntegrationController {
 
             // 3. 메시지 서명 (첫 번째 키 사용)
             byte[] message = "Integration test message".getBytes();
-            byte[] signature = new byte[65]; // ECDSA eth signature is 65 bytes
+            byte[] signature = new byte[65]; // ECDSA eth signature (v, r, s) is 65 bytes
             int signRes = HWallet.signEcdsaEth(privKeys.get(0), message, signature);
-            if (signRes != 0) throw new Exception("ECDSA Sign failed");
+            if (signRes != 0) throw new Exception("ECDSA Sign failed (Error: " + signRes + ")");
 
             // 4. 서명 주소 확인 (ecrecover)
             String recoveredAddr = HWallet.recoverEthAddress(message, signature);
@@ -58,8 +58,14 @@ public class IntegrationController {
             // 5. ECIES 암/복호화 (Key 0-1 간)
             Ecies.KeyPair kp1 = Ecies.generateKeyPairFromBytes(privKeys.get(1));
             byte[] secretMsg = "Secret ECIES message".getBytes();
-            byte[] encrypted = Ecies.encrypt(kp1.publicKey, secretMsg);
-            byte[] decrypted = Ecies.decrypt(privKeys.get(1), encrypted);
+            byte[] encrypted = new byte[117]; // PK(65) + IV(16) + Tag(16) + Msg(20) = 117
+            int encRes = Ecies.encrypt(kp1.publicKey, secretMsg, encrypted);
+            if (encRes != 0) throw new Exception("ECIES Encrypt failed (Error: " + encRes + ")");
+
+            byte[] decrypted = new byte[20];
+            int decRes = Ecies.decrypt(privKeys.get(1), encrypted, decrypted);
+            if (decRes != 0) throw new Exception("ECIES Decrypt failed (Error: " + decRes + ")");
+            
             String decryptedStr = new String(decrypted);
             boolean step5Success = decryptedStr.equals("Secret ECIES message");
 
