@@ -162,6 +162,55 @@ const bbs_bound_bls12_381_bbs_g1_bls_sig_g2_sha_256_proof_verify = async (reques
     return await throwErrorOnRejectedPromise(wasm.bbs_bound_bls12_381_bbs_g1_bls_sig_g2_sha_256_proof_verify(request));
 }
 
+const hwallet_generate_mnemonic = async () => {
+    await initialize();
+    return await throwErrorOnRejectedPromise(wasm.hwallet_generate_mnemonic());
+};
+
+const hwallet_mnemonic_to_seed = async (mnemonic, passphrase) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.hwallet_mnemonic_to_seed(mnemonic, passphrase)));
+};
+
+const hwallet_derive_private_key = async (seed, path) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.hwallet_derive_private_key(seed, path)));
+};
+
+const hwallet_eth_address_from_pubkey = async (pubkey) => {
+    await initialize();
+    return await throwErrorOnRejectedPromise(wasm.hwallet_eth_address_from_pubkey(pubkey));
+};
+
+const hwallet_sign_ecdsa_eth = async (privkey, message) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.hwallet_sign_ecdsa_eth(privkey, message)));
+};
+
+const hwallet_recover_eth_address = async (message, signature) => {
+    await initialize();
+    return await throwErrorOnRejectedPromise(wasm.hwallet_recover_eth_address(message, signature));
+};
+
+const ecies_keypair_from_bytes = async (privkey) => {
+    await initialize();
+    const result = await throwErrorOnRejectedPromise(wasm.ecies_keypair_from_bytes(privkey));
+    return {
+        secret_key: new Uint8Array(result.secret_key),
+        public_key: new Uint8Array(result.public_key)
+    };
+};
+
+const ecies_encrypt = async (uncompressed_pubkey, msg) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_encrypt(uncompressed_pubkey, msg)));
+};
+
+const ecies_decrypt = async (privkey, encrypted_data) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_decrypt(privkey, encrypted_data)));
+};
+
 const convertToRevealMessageArray = (messages, revealedIndicies) => {
     let revealMessages = [];
     let i = 0;
@@ -241,3 +290,16 @@ module.exports.utilities = {
     convertToRevealMessageArray,
     convertRevealMessageArrayToRevealMap
 }
+
+module.exports.hwallet_generate_mnemonic = hwallet_generate_mnemonic;
+module.exports.hwallet_mnemonic_to_seed = hwallet_mnemonic_to_seed;
+module.exports.hwallet_derive_private_key = hwallet_derive_private_key;
+module.exports.hwallet_eth_address_from_pubkey = hwallet_eth_address_from_pubkey;
+module.exports.hwallet_sign_ecdsa_eth = hwallet_sign_ecdsa_eth;
+module.exports.hwallet_recover_eth_address = hwallet_recover_eth_address;
+
+module.exports.ecies_keypair_from_bytes = ecies_keypair_from_bytes;
+module.exports.ecies_encrypt = ecies_encrypt;
+module.exports.ecies_decrypt = ecies_decrypt;
+module.exports.ecies_encrypt_with_pubkey = ecies_encrypt;
+module.exports.ecies_decrypt_with_privkey = ecies_decrypt;

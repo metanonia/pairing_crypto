@@ -108,3 +108,23 @@ export namespace utilities {
     messages: { value: Uint8Array; reveal: boolean }[]
   ): { [key: number]: Uint8Array };
 }
+
+/** HWallet API */
+export function hwallet_generate_mnemonic(): Promise<string>;
+export function hwallet_mnemonic_to_seed(mnemonic: string, passphrase: string): Promise<Uint8Array>;
+export function hwallet_derive_private_key(seed: Uint8Array, path: string): Promise<Uint8Array>;
+export function hwallet_eth_address_from_pubkey(pubkey: Uint8Array): Promise<string>;
+export function hwallet_sign_ecdsa_eth(privkey: Uint8Array, message: Uint8Array): Promise<Uint8Array>;
+export function hwallet_recover_eth_address(message: Uint8Array, signature: Uint8Array): Promise<string>;
+
+/** ECIES API */
+export interface EciesKeyPair {
+  secret_key: Uint8Array;
+  public_key: Uint8Array;
+}
+
+export function ecies_keypair_from_bytes(privkey: Uint8Array): Promise<EciesKeyPair>;
+export function ecies_encrypt(uncompressed_pubkey: Uint8Array, msg: Uint8Array): Promise<Uint8Array>;
+export function ecies_decrypt(privkey: Uint8Array, encrypted_data: Uint8Array): Promise<Uint8Array>;
+export function ecies_encrypt_with_pubkey(uncompressed_pubkey: Uint8Array, msg: Uint8Array): Promise<Uint8Array>;
+export function ecies_decrypt_with_privkey(privkey: Uint8Array, encrypted_data: Uint8Array): Promise<Uint8Array>;

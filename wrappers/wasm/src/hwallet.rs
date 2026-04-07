@@ -44,12 +44,12 @@ pub fn hwallet_eth_address_from_pubkey(pubkey: &[u8]) -> Result<String, JsValue>
 pub fn hwallet_sign_ecdsa_eth(privkey: &[u8], message: &[u8]) -> Result<Vec<u8>, JsValue> {
     set_panic_hook();
     HWallet::sign_ecdsa_eth(privkey, message)
-        .map_err(|e| JsValue::from_str(&e))
+        .map_err(|e| JsValue::from_str(e.as_str()))
 }
 
 #[wasm_bindgen(js_name = hwallet_recover_eth_address)]
 pub fn hwallet_recover_eth_address(message: &[u8], signature: &[u8]) -> Result<String, JsValue> {
     set_panic_hook();
     HWallet::recover_eth_address(message, signature)
-        .map_err(|e| JsValue::from_str(&e))
+        .map_err(|e| JsValue::from_str(e.as_str()))
 }

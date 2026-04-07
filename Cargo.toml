@@ -26,7 +26,6 @@ getrandom = { version = "0.2", optional = true, features = ["js"] }
 rand_core = "0.6"
 bip39 = "2.0"
 bip32 = "0.5"
-ecies = "0.2"
 secp256k1 = { version = "0.28", features = ["rand", "recovery"] }
 hex = "0.4"
 pairing = "0.22.0"
@@ -36,7 +35,15 @@ subtle = "2.4"
 zeroize = { version  ="1.3", features = ["zeroize_derive"] }
 sha2 = "0.9"
 sha3 = "0.9"
-openssl = { version = "0.10", features = ["vendored"] }
+
+# Dependencies for Pure-Rust ECIES (WASM-compatible)
+k256 = { version = "0.13", features = ["ecdh", "arithmetic"] }
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2_v10 = { version = "0.10", package = "sha2" }
+aead = "0.5"
+typenum = "1.16"
+generic-array = "0.14"
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
@@ -64,6 +71,9 @@ harness = false
 
 [[example]]
 name = "bbs_simple"
+
+[[example]]
+name = "ecies_check"
 
 [workspace]
 members = [
