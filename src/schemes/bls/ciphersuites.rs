@@ -22,6 +22,7 @@ pub(crate) trait BlsCiphersuiteParameters: HashToCurveParameter {
     }
 
     /// Point on G2 to be used during signature and proof verification.
+    #[allow(dead_code)]
     fn p2() -> G2Projective {
         G2Projective::generator()
     }

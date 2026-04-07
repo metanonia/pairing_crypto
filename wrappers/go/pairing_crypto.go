@@ -1,10 +1,10 @@
 package pairing_crypto
 
 /*
-#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/../../target/aarch64-apple-darwin/release -lpairing_crypto_c -lpthread -ldl -lm
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-apple-darwin/release -lpairing_crypto_c -lpthread -ldl -lm
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-unknown-linux-gnu/release -lpairing_crypto_c -lpthread -ldl -lm
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-pc-windows-msvc/release -lpairing_crypto_c
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/../../target/aarch64-apple-darwin/release -L${SRCDIR}/../../target/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-apple-darwin/release -L${SRCDIR}/../../target/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-unknown-linux-gnu/release -L${SRCDIR}/../../target/release -lpairing_crypto_c -lpthread -ldl -lm
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/../../target/x86_64-pc-windows-msvc/release -L${SRCDIR}/../../target/release -lpairing_crypto_c
 #include "pairing_crypto.h"
 #include <stdlib.h>
 */
@@ -223,7 +223,7 @@ func (s *bls12381Sha256) VerifyProof(publicKey, proof, header, presentationHeade
 
 	for idx, msg := range revealedMessages {
 		m := toByteArray(msg)
-		C.bbs_bls12_381_sha_256_proof_verify_context_add_message(handle, C.uint64_t(idx), m, &err)
+		C.bbs_bls12_381_sha_256_proof_verify_context_add_message(handle, C.uintptr_t(idx), m, &err)
 		if err.code != 0 { return false, handleError(err) }
 	}
 
@@ -362,7 +362,7 @@ func (s *bls12381Shake256) VerifyProof(publicKey, proof, header, presentationHea
 	}
 	for idx, m := range revealedMessages {
 		msg := toByteArray(m)
-		C.bbs_bls12_381_shake_256_proof_verify_context_add_message(handle, C.uint64_t(idx), msg, &err)
+		C.bbs_bls12_381_shake_256_proof_verify_context_add_message(handle, C.uintptr_t(idx), msg, &err)
 		if err.code != 0 { return false, handleError(err) }
 	}
 	if res := C.bbs_bls12_381_shake_256_proof_verify_context_finish(handle, &err); res != 0 { return false, nil }

@@ -24,7 +24,7 @@ impl HWallet {
     pub fn derive_private_key(seed: &[u8; 64], path_str: &str) -> Vec<u8> {
         let path = DerivationPath::from_str(path_str).expect("Invalid derivation path");
         let child_key = XPrv::derive_from_path(seed, &path).expect("Key derivation failed");
-        child_key.private_key().to_bytes().as_slice().to_vec()
+        child_key.private_key().to_bytes().to_vec()
     }
 
     /// 공용키(Serialize Uncompressed)로부터 이더리움 주소 생성

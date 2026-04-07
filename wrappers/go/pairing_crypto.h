@@ -561,6 +561,16 @@ int32_t pairing_crypto_hwallet_eth_address_from_pubkey(struct ByteArray pubkey,
                                                        struct ByteBuffer *address_out,
                                                        struct ExternError *err);
 
+int32_t pairing_crypto_hwallet_sign_ecdsa_eth(struct ByteArray privkey,
+                                              struct ByteArray message,
+                                              struct ByteBuffer *signature_out,
+                                              struct ExternError *err);
+
+int32_t pairing_crypto_hwallet_recover_eth_address(struct ByteArray message,
+                                                   struct ByteArray signature,
+                                                   struct ByteBuffer *address_out,
+                                                   struct ExternError *err);
+
 int32_t pairing_crypto_ecies_keypair_from_bytes(struct ByteArray privkey_bytes,
                                                 struct ByteBuffer *sk_out,
                                                 struct ByteBuffer *pk_out,

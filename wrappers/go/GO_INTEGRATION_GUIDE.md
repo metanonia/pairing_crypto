@@ -226,11 +226,38 @@ go run main.go
 
 ---
 
-## 💡 유의 사항 (macOS)
+---
 
-CGO 빌드 시 라이브러리 경로 오인 등으로 링크 에러가 발생할 경우, 라이브러리가 빌드된 `target/release` 디렉토리의 절대 경로를 `LDFLAGS`에 명시하거나 `LIBRARY_PATH` 환경 변수를 지정하세요.
+## 💡 유의 사항 및 트러블슈팅
 
+### 1. 헤더 파일 동기화 (`pairing_crypto.h`)
+Cgo는 `wrappers/go/pairing_crypto.h` 파일을 참조합니다. Rust의 C 래퍼(`wrappers/c`)에서 API가 변경되거나 추가된 경우, 반드시 최신 헤더 파일을 Go 래퍼 디렉토리로 복사해야 합니다.
 ```bash
+# 프로젝트 루트에서 실행
+cp wrappers/c/include/pairing_crypto.h wrappers/go/pairing_crypto.h
+```
+만약 `could not determine what C.pairing_crypto_... refers to`와 같은 에러가 발생한다면 헤더 파일이 구버전인지 확인하세요.
+
+### 2. 라이브러리 검색 경로 설정 (`LDFLAGS`)
+Go가 빌드된 Rust 라이브러리(`.a` 또는 `.dylib`)를 찾지 못할 경우 `pairing_crypto.go` 파일의 `LDFLAGS` 설정을 확인해야 합니다. 현재 프로젝트는 다음과 같은 경로를 자동으로 탐색하도록 설정되어 있습니다:
+- `target/release/` (기본 빌드)
+- `target/<arch>-apple-darwin/release/` (타겟 명시 빌드)
+- `${SRCDIR}` (Go 래퍼 디렉토리 자체)
+
+**해결 방법**:
+빌드된 라이브러리 파일(`libpairing_crypto_c.dylib` 등)을 `wrappers/go` 디렉토리로 직접 복사하거나, `LIBRARY_PATH` 환경 변수를 지정하세요.
+```bash
+# 방법 1: 라이브러리 파일 복사 (추천)
+cp target/release/libpairing_crypto_c.dylib wrappers/go/
+
+# 방법 2: 환경 변수 지정
 export LIBRARY_PATH=$LIBRARY_PATH:$(pwd)/../../target/release
-go run example/main.go
+```
+
+### 3. 포트 충돌 (`address already in use`)
+`go run main.go` 실행 시 `bind: address already in use` 에러가 발생한다면, 이미 8080 포트를 점유 중인 프로세스가 있는 것입니다.
+```bash
+# 8080 포트 점유 프로세스 확인 및 종료 (macOS)
+lsof -i :8080
+kill -9 <PID>
 ```

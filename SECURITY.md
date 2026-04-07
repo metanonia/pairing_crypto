@@ -1,12 +1,9 @@
-# Mattr Security Policy
+# Mattr 보안 정책 (Mattr Security Policy)
 
-## Reporting a Security Bug
+## 보안 취약점 보고 (Reporting a Security Bug)
 
-If you think you have discovered a security issue in any of the Mattr projects, we'd love to hear from you. We will take
-all security bugs seriously and if confirmed upon investigation we will patch it within a reasonable amount of time and
-release a public security bulletin discussing the impact and credit the discoverer.
+Mattr 프로젝트에서 보안 문제를 발견했다고 생각하신다면, 저희에게 알려주시기 바랍니다. 모든 보안 버그를 심각하게 다룰 것이며, 조사 결과 확인될 경우 합당한 시간 내에 패치를 진행하고 영향도에 대한 공개 보안 회보를 발행하며 발견자에게 감사를 표할 것입니다.
 
-The best way to report a security bug is to email a description of the flaw and any related information (e.g.
-reproduction steps, version) to [security at mattr dot global](mailto:security@mattr.global).
+보안 버그를 보고하는 가장 좋은 방법은 결함에 대한 설명과 관련 정보(예: 재현 단계, 버전)를 [security@mattr.global](mailto:security@mattr.global)로 이메일을 보내는 것입니다.
 
-From there we'll work with you to assess the bug and decide the appropriate path forward.
+접수된 후, 저희는 귀하와 협력하여 버그를 평가하고 적절한 후속 조치를 결정할 것입니다.

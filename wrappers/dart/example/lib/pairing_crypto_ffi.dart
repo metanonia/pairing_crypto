@@ -64,6 +64,33 @@ typedef ProofVerifyAddMsgDart = int Function(
 typedef SetBoolNative = ffi.Int32 Function(ffi.Uint64 handle, ffi.Bool value, ffi.Pointer<ExternError> err);
 typedef SetBoolDart = int Function(int handle, bool value, ffi.Pointer<ExternError> err);
 
+typedef HWalletGenerateMnemonicNative = ffi.Int32 Function(ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletGenerateMnemonicDart = int Function(ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef HWalletMnemonicToSeedNative = ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletMnemonicToSeedDart = int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef HWalletDerivePrivateKeyNative = ffi.Int32 Function(ByteArray, ffi.Pointer<Utf8>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletDerivePrivateKeyDart = int Function(ByteArray, ffi.Pointer<Utf8>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef HWalletEthAddressFromPubkeyNative = ffi.Int32 Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletEthAddressFromPubkeyDart = int Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef HWalletSignEcdsaEthNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletSignEcdsaEthDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef HWalletRecoverEthAddressNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef HWalletRecoverEthAddressDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef EciesKeypairFromBytesNative = ffi.Int32 Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef EciesKeypairFromBytesDart = int Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef EciesEncryptNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef EciesEncryptDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef EciesDecryptNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef EciesDecryptDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
 class PairingCryptoLib {
   late ffi.DynamicLibrary _lib;
 
@@ -106,6 +133,19 @@ class PairingCryptoLib {
   late final GenerateKeyPairDart _bbsGenerateKeyPair;
   late final GetProofSizeDart _bbsGetProofSize;
   late final FreeBufferDart _freeBuffer;
+
+  // HWallet API
+  late final HWalletGenerateMnemonicDart _hwalletGenerateMnemonic;
+  late final HWalletMnemonicToSeedDart _hwalletMnemonicToSeed;
+  late final HWalletDerivePrivateKeyDart _hwalletDerivePrivateKey;
+  late final HWalletEthAddressFromPubkeyDart _hwalletEthAddressFromPubkey;
+  late final HWalletSignEcdsaEthDart _hwalletSignEcdsaEth;
+  late final HWalletRecoverEthAddressDart _hwalletRecoverEthAddress;
+
+  // ECIES API
+  late final EciesKeypairFromBytesDart _eciesKeypairFromBytes;
+  late final EciesEncryptDart _eciesEncrypt;
+  late final EciesDecryptDart _eciesDecrypt;
 
   PairingCryptoLib() {
     if (Platform.isAndroid) {
@@ -150,6 +190,16 @@ class PairingCryptoLib {
     _bbsGenerateKeyPair = _lib.lookupFunction<GenerateKeyPairNative, GenerateKeyPairDart>('bbs_bls12_381_sha_256_generate_key_pair');
     _bbsGetProofSize = _lib.lookupFunction<GetProofSizeNative, GetProofSizeDart>('bbs_bls12_381_sha_256_get_proof_size');
     _freeBuffer = _lib.lookupFunction<FreeBufferNative, FreeBufferDart>('pairing_crypto_byte_buffer_free');
+
+    _hwalletGenerateMnemonic = _lib.lookupFunction<HWalletGenerateMnemonicNative, HWalletGenerateMnemonicDart>('pairing_crypto_hwallet_generate_mnemonic');
+    _hwalletMnemonicToSeed = _lib.lookupFunction<HWalletMnemonicToSeedNative, HWalletMnemonicToSeedDart>('pairing_crypto_hwallet_mnemonic_to_seed');
+    _hwalletDerivePrivateKey = _lib.lookupFunction<HWalletDerivePrivateKeyNative, HWalletDerivePrivateKeyDart>('pairing_crypto_hwallet_derive_private_key');
+    _hwalletEthAddressFromPubkey = _lib.lookupFunction<HWalletEthAddressFromPubkeyNative, HWalletEthAddressFromPubkeyDart>('pairing_crypto_hwallet_eth_address_from_pubkey');
+    _hwalletSignEcdsaEth = _lib.lookupFunction<HWalletSignEcdsaEthNative, HWalletSignEcdsaEthDart>('pairing_crypto_hwallet_sign_ecdsa_eth');
+    _hwalletRecoverEthAddress = _lib.lookupFunction<HWalletRecoverEthAddressNative, HWalletRecoverEthAddressDart>('pairing_crypto_hwallet_recover_eth_address');
+    _eciesKeypairFromBytes = _lib.lookupFunction<EciesKeypairFromBytesNative, EciesKeypairFromBytesDart>('pairing_crypto_ecies_keypair_from_bytes');
+    _eciesEncrypt = _lib.lookupFunction<EciesEncryptNative, EciesEncryptDart>('pairing_crypto_ecies_encrypt');
+    _eciesDecrypt = _lib.lookupFunction<EciesDecryptNative, EciesDecryptDart>('pairing_crypto_ecies_decrypt');
   }
 
   Map<String, Uint8List> generateKeyPair(Uint8List ikm, [Uint8List? keyInfo]) {
@@ -305,6 +355,186 @@ class PairingCryptoLib {
     func(handle, baPtr.ref, err);
     _checkError(err);
     _freePtr(baPtr);
+  }
+
+  // --- HWallet Methods ---
+
+  String generateMnemonic() {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    try {
+      final res = _hwalletGenerateMnemonic(buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Generate Mnemonic failed');
+      final str = String.fromCharCodes(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return str;
+    } finally {
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List mnemonicToSeed(String mnemonic, String passphrase) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final mPtr = mnemonic.toNativeUtf8();
+    final pPtr = passphrase.toNativeUtf8();
+    try {
+      final res = _hwalletMnemonicToSeed(mPtr, pPtr, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Mnemonic to Seed failed');
+      final seed = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return seed;
+    } finally {
+      calloc.free(mPtr);
+      calloc.free(pPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List derivePrivateKey(Uint8List seed, String path) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final seedPtr = _mallocByteArray(seed);
+    final pPtr = path.toNativeUtf8();
+    try {
+      final res = _hwalletDerivePrivateKey(seedPtr.ref, pPtr, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Derive Private Key failed');
+      final pk = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return pk;
+    } finally {
+      _freePtr(seedPtr);
+      calloc.free(pPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  String ethAddressFromPubkey(Uint8List pubkey) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final pkPtr = _mallocByteArray(pubkey);
+    try {
+      final res = _hwalletEthAddressFromPubkey(pkPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Eth Address from Pubkey failed');
+      final str = String.fromCharCodes(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return str;
+    } finally {
+      _freePtr(pkPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List hwalletSignEcdsaEth(Uint8List privkey, Uint8List message) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    final msgPtr = _mallocByteArray(message);
+    try {
+      final res = _hwalletSignEcdsaEth(skPtr.ref, msgPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('HWallet Sign ECDSA ETH failed');
+      final sig = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return sig;
+    } finally {
+      _freePtr(skPtr);
+      _freePtr(msgPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  String hwalletRecoverEthAddress(Uint8List message, Uint8List signature) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final msgPtr = _mallocByteArray(message);
+    final sigPtr = _mallocByteArray(signature);
+    try {
+      final res = _hwalletRecoverEthAddress(msgPtr.ref, sigPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('HWallet Recover Eth Address failed');
+      final str = String.fromCharCodes(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return str;
+    } finally {
+      _freePtr(msgPtr);
+      _freePtr(sigPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  // --- ECIES Methods ---
+
+  Map<String, Uint8List> eciesKeypairFromBytes(Uint8List privkey) {
+    final err = calloc<ExternError>();
+    final skBuf = calloc<ByteBuffer>();
+    final pkBuf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    try {
+      final res = _eciesKeypairFromBytes(skPtr.ref, skBuf, pkBuf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES Keypair from Bytes failed');
+      final sk = Uint8List.fromList(skBuf.ref.data.asTypedList(skBuf.ref.length));
+      final pk = Uint8List.fromList(pkBuf.ref.data.asTypedList(pkBuf.ref.length));
+      _freeBuffer(skBuf.ref);
+      _freeBuffer(pkBuf.ref);
+      return {'secretKey': sk, 'publicKey': pk};
+    } finally {
+      _freePtr(skPtr);
+      calloc.free(skBuf);
+      calloc.free(pkBuf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List eciesEncrypt(Uint8List uncompressedPubkey, Uint8List msg) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final pkPtr = _mallocByteArray(uncompressedPubkey);
+    final msgPtr = _mallocByteArray(msg);
+    try {
+      final res = _eciesEncrypt(pkPtr.ref, msgPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES Encrypt failed');
+      final enc = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return enc;
+    } finally {
+      _freePtr(pkPtr);
+      _freePtr(msgPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List eciesDecrypt(Uint8List privkey, Uint8List encryptedData) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    final encPtr = _mallocByteArray(encryptedData);
+    try {
+      final res = _eciesDecrypt(skPtr.ref, encPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES Decrypt failed');
+      final dec = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return dec;
+    } finally {
+      _freePtr(skPtr);
+      _freePtr(encPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
   }
 
   ffi.Pointer<ByteArray> _mallocByteArray(Uint8List data) {

@@ -69,6 +69,7 @@ pub extern "C" fn pairing_crypto_hwallet_eth_address_from_pubkey(
     address_out: &mut ByteBuffer,
     err: &mut ExternError,
 ) -> i32 {
+    let pk_vec = pubkey.to_vec();
     let addr = HWallet::eth_address_from_pubkey(&pk_vec);
     *address_out = ByteBuffer::from_vec(addr.into_bytes());
     *err = ExternError::success();
