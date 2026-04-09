@@ -1,6 +1,6 @@
-# Spring Boot 통합 및 사용 가이드
+# Java/Spring Boot 연동 가이드
 
-이 문서는 `pairing_crypto` Rust 라이브러리를 Java/Spring Boot 환경에서 JNI(Java Native Interface)를 통해 연동하고, REST API 서버를 구축하는 방법을 설명합니다.
+이 문서는 `pairing_crypto` Rust 라이브러리를 Java/Spring Boot 환경에서 JNI를 통해 연동하는 방법을 설명합니다.
 
 ---
 
@@ -138,9 +138,7 @@ boolean isValid = bbs.verifyProof(publicKey, header, ph, proof, revealedMessages
 
 ---
 
-## 5. HD Wallet 및 ECIES 사용 예제
-
-Java 환경에서 신규 추가된 `HWallet` 및 `Ecies` 정적 보조 클래스를 사용하는 방법입니다.
+## 5. HD Wallet 및 ECIES 사용
 
 ### 💳 HD Wallet (BIP32/39/44)
 ```java
@@ -201,29 +199,25 @@ byte[] decrypted = Ecies.decryptMessageX25519(xsk, encrypted);
 
 ---
 
-## 6. 종합 통합 테스트 시나리오 (5-Step)
+## 6. 통합 테스트 시나리오 (Ethereum 기반)
 
-`pairing_crypto` 라이브러리의 모든 기능(HD Wallet, ECDSA, ECIES)을 유기적으로 연결하여 검증하는 표준 시나리오입니다.
-
-1.  **키 쌍 파생**: 동일한 니모닉 시드로부터 BIP44 경로(`m/44'/60'/0'/0/i`)를 따라 3개의 키 쌍을 생성합니다.
-2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소를 도출합니다.
-3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 임의의 메시지에 서명합니다.
-4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소를 복구(ecrecover)하여 2단계에서 생성한 주소와 일치하는지 확인합니다.
-5.  **ECIES 통신**: 첫 번째 키(index 0)와 두 번째 키(index 1) 간에 암호화 및 복호화를 수행하여 데이터 무결성을 확인합니다.
+1.  **키 쌍 파생**: 니모닉 시드로부터 BIP44 경로(`m/44'/60'/0'/0/i`)를 따라 3개의 키 쌍 생성.
+2.  **ETH 주소 생성**: 각 키 쌍의 공개키로부터 이더리움 표준 주소 도출.
+3.  **ECDSA 서명**: 첫 번째 키(index 0)를 사용하여 메시지 서명.
+4.  **주소 복구**: 서명과 메시지로부터 이더리움 주소 복구(ecrecover) 및 일치 여부 확인.
+5.  **ECIES 통신**: 키 쌍 간 암호화 및 복호화 수행.
 
 > [!TIP]
 > 상세 구현 로직은 `wrappers/java/example/src/main/java/com/example/bbs/controller/IntegrationController.java`의 `/api/integration/test` 엔드포인트를 참고하세요.
 
 ---
 
-## 7. Ed25519 통합 테스트 플로우 (Full Flow)
+## 7. Ed25519 통합 테스트 플로우
 
-Ed25519 키의 생명주기 전체를 검증하는 독립적인 시나리오입니다.
-
-1.  **Ed25519 키 생성**: 랜덤 시드로부터 Ed25519 키 쌍을 생성합니다.
-2.  **서명 및 검증**: 생성된 키로 메시지에 서명하고 유효성을 즉시 검증합니다.
-3.  **X25519 변환**: `birational equivalence`를 사용하여 Ed25519 키를 X25519 키로 변환합니다.
-4.  **X25519 ECIES**: 변환된 키를 사용하여 암복호화가 정상적으로 이루어지는지 확인합니다.
+1.  **Ed25519 키 생성**: 랜덤 시드로부터 Ed25519 키 쌍 생성.
+2.  **서명 및 검증**: 생성된 키로 메시지 서명 및 유효성 검증.
+3.  **X25519 변환**: Ed25519 키를 X25519 키로 변환.
+4.  **X25519 ECIES**: 변환된 키를 사용하여 암복호화 수행.
 
 > [!TIP]
 > 상세 구현 로직은 `IntegrationController.java`의 `/integration/ed25519-test` 엔드포인트를 참고하세요.

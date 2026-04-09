@@ -1,6 +1,6 @@
-# Flutter 연동 및 테스트 가이드
+# Flutter 연동 가이드
 
-이 문서는 `pairing_crypto` Rust 라이브러리를 Flutter 프로젝트에 연동하고 Android 및 iOS에서 테스트하는 방법을 설명합니다. 특히 라이브러리 업데이트 시 발생할 수 있는 캐시 문제를 방지하기 위해 **Clean(초기화)** 및 **Verify(검증)** 단계를 포함하고 있습니다.
+이 문서는 `pairing_crypto` Rust 라이브러리를 Flutter 프로젝트에 연동하고 Android 및 iOS에서 테스트하는 방법을 설명합니다.
 
 ---
 
@@ -49,10 +49,9 @@ rm -rf out
 ./scripts/build-platform-targets.sh ANDROID ./out
 ```
 
-### 🔍 빌드 결과 심볼 검증 (매우 중요!)
-빌드가 완료된 후, 새로운 함수들이 라이브러리에 실제로 포함되었는지 확인합니다.
+### 빌드 결과 심볼 검증
+빌드 완료 후 함수 포함 여부를 확인합니다.
 ```bash
-# 'hwallet' 관련 함수가 리스트업되어야 합니다. (아무것도 안 나오면 빌드 실패)
 nm -D out/android/arm64-v8a/libpairing_crypto_c.so | grep hwallet
 ```
 
@@ -112,9 +111,9 @@ cp ../dart/lib/pairing_crypto_ffi.dart ../dart/example/lib/
 
 ---
 
-## 3. 종합 통합 테스트 코드 (`main.dart`)
+## 3. 통합 테스트 코드 (`main.dart`)
 
-`wrappers/dart/example/lib/main.dart`에 아래 코드를 복사하여 붙여넣으세요. 이 코드는 **BBS 테스트**와 **5단계 통합 테스트(HD Wallet & ECIES)**를 모두 지원합니다.
+`wrappers/dart/example/lib/main.dart`의 핵심 로직입니다. BBS 테스트와 5단계 통합 테스트(HD Wallet & ECIES)를 포함합니다.
 
 ```dart
 import 'package:flutter/material.dart';

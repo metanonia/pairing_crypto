@@ -3,7 +3,7 @@
 
 ## 🚀 주요 기능 (Key Features)
 
-본 라이브러리는 탈중앙화 신원증명(DID) 및 개인정보 보호가 강조되는 차세대 웹 환경을 위해 설계되었습니다.
+본 라이브러리는 탈중앙화 신원증명(DID)용 암호 라이브러리입니다.
 
 ### 1. BBS+ Signatures (Pairing-based)
 - **영지식 증명(ZKP)**: 서명된 전체 메시지 중 원하는 메시지만 선택적으로 공개(Selective Disclosure)할 수 있습니다.
@@ -65,6 +65,5 @@
 
 ---
 
-<p align="center"><a href="https://mattr.global" target="_blank"><img height="40px" src ="./docs/assets/mattr-logo-tm.svg"></a></p>
 <p align="center">Licensed under the Apache License, Version 2.0. <br/>
 This project is a fork of and extends <a href="https://github.com/mattrglobal/pairing_crypto">mattrglobal/pairing_crypto</a>, originally developed by MATTR Limited.</p>
