@@ -132,81 +132,142 @@
 
             <!-- Ed25519 Tab -->
             <div id="tab-ed25519" class="tab-content space-y-6">
-                <h2 class="text-xl font-semibold">Ed25519 Signature</h2>
-                <div class="space-y-4">
-                    <div class="flex gap-4">
-                        <button onclick="generateEd25519Keys()" class="btn-primary flex-1 py-2 rounded-xl font-medium">Generate Ed25519 Keys</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Column 1: Ed25519 Base -->
+                    <div class="space-y-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <h2 class="text-lg font-semibold text-indigo-400">1. Ed25519 Signature</h2>
+                        <button onclick="generateEd25519Keys()" class="btn-primary w-full py-2 rounded-xl font-medium">Generate Ed25519 Keys</button>
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Ed25519 Public Key</label>
+                            <input id="ed-pubkey" readonly class="input-field font-mono text-xs opacity-70" placeholder="Public key...">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Message</label>
+                            <input id="ed-message" class="input-field" value="This is a test message for Ed25519">
+                        </div>
+                        <button onclick="signEd25519()" class="btn-primary w-full py-2 rounded-xl font-medium">Sign Message</button>
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Signature</label>
+                            <textarea id="ed-signature" readonly class="input-field h-16 font-mono text-xs opacity-70" placeholder="Signature..."></textarea>
+                        </div>
+                        <button onclick="verifyEd25519()" class="bg-white/10 hover:bg-white/20 w-full py-2 rounded-xl font-medium transition">Verify Signature</button>
+                        <div id="ed-verify-result" class="p-3 rounded-xl border border-transparent hidden text-center text-sm font-medium"></div>
                     </div>
-                    <div>
-                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Ed25519 Public Key</label>
-                        <input id="ed-pubkey" readonly class="input-field font-mono text-xs opacity-70" placeholder="Public key...">
+
+                    <!-- Column 2: X25519 Conversion & ECIES -->
+                    <div class="space-y-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                        <h2 class="text-lg font-semibold text-purple-400">2. X25519 & ECIES</h2>
+                        <button onclick="convertToX25519()" class="btn-primary w-full py-2 rounded-xl font-medium bg-gradient-to-r from-purple-500 to-pink-500">Convert to X25519</button>
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">X25519 Public Key (Converted)</label>
+                            <input id="x-pubkey" readonly class="input-field font-mono text-xs opacity-70" placeholder="X25519 PK will appear here...">
+                        </div>
+                        
+                        <div class="pt-4 border-t border-white/5">
+                            <h3 class="text-sm font-semibold mb-3">X25519 ECIES Encryption Test</h3>
+                            <div>
+                                <label class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Secret Message</label>
+                                <input id="x-ecies-message" class="input-field" value="Hello X25519 ECIES World!">
+                            </div>
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="runX25519EciesTest()" class="btn-primary flex-1 py-2 rounded-xl font-medium">Encrypt & Decrypt Test</button>
+                            </div>
+                        </div>
+                        
+                        <div id="x-ecies-result" class="p-4 rounded-xl glass border-white/10 hidden space-y-2">
+                            <div class="text-[9px] uppercase tracking-widest font-bold text-slate-500">Decrypted Result</div>
+                            <div id="x-decrypted-text" class="text-sm font-bold text-purple-400 italic"></div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Message to Sign</label>
-                        <input id="ed-message" class="input-field" value="This is a test message for Ed25519">
-                    </div>
-                    <button onclick="signEd25519()" class="btn-primary w-full py-3 rounded-xl font-semibold">Sign Message</button>
-                    <div>
-                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Signature (64 bytes)</label>
-                        <textarea id="ed-signature" readonly class="input-field h-20 font-mono text-xs opacity-70" placeholder="Signature..."></textarea>
-                    </div>
-                    <button onclick="verifyEd25519()" class="bg-white/10 hover:bg-white/20 w-full py-3 rounded-xl font-semibold transition">Verify Signature</button>
-                    <div id="ed-verify-result" class="p-4 rounded-xl border border-transparent hidden text-center font-medium"></div>
                 </div>
             </div>
 
             <!-- Integration Tab -->
-            <div id="tab-integration" class="tab-content space-y-6">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-semibold">5-Step Integration Test</h2>
-                    <button onclick="runIntegrationTest()" id="run-test-btn" class="btn-primary px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20">Run All Steps</button>
-                </div>
-                
-                <div id="test-results" class="space-y-4">
-                    <p class="text-sm text-slate-400">This scenario validates HD Wallet derivation, BIP44 paths, ECDSA signing, and ECIES encrypted communication.</p>
+            <div id="tab-integration" class="tab-content space-y-12">
+                <!-- Scenario 1: Secp256k1 Flow -->
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold">Scenario 1: 5-Step Integration (Ethereum Flow)</h2>
+                        <button onclick="runIntegrationTest()" id="run-test-btn" class="btn-primary px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20">Run Test</button>
+                    </div>
                     
-                    <div id="test-progress" class="hidden space-y-3">
-                        <div id="step-1" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">01</span>
-                                <span>HD Wallet: 3 Keys Derived (BIP44)</span>
+                    <div id="test-results" class="space-y-4">
+                        <div id="test-progress" class="hidden space-y-3">
+                            <div id="step-1" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">01</span>
+                                    <span>HD Wallet: 3 Keys Derived (BIP44)</span>
+                                </div>
+                                <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
                             </div>
-                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
-                        </div>
-                        <div id="step-2" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">02</span>
-                                <span>ETH Addresses Created</span>
+                            <div id="step-2" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">02</span>
+                                    <span>ETH Addresses Created</span>
+                                </div>
+                                <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
                             </div>
-                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
-                        </div>
-                        <div id="step-3" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">03</span>
-                                <span>ECDSA Signing (Key Index 0)</span>
+                            <div id="step-3" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">03</span>
+                                    <span>ECDSA Signing (Key Index 0)</span>
+                                </div>
+                                <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
                             </div>
-                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
-                        </div>
-                        <div id="step-4" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">04</span>
-                                <span>Address Recovery (ecrecover)</span>
+                            <div id="step-4" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">04</span>
+                                    <span>Address Recovery (ecrecover)</span>
+                                </div>
+                                <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
                             </div>
-                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
-                        </div>
-                        <div id="step-5" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">05</span>
-                                <span>ECIES Encryption/Decryption</span>
+                            <div id="step-5" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">05</span>
+                                    <span>ECIES Encryption/Decryption</span>
+                                </div>
+                                <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
                             </div>
-                            <span class="status-icon bg-indigo-500/10 p-1 rounded-full text-lg">⏳</span>
-                        </div>
 
-                        <!-- Detailed Result Display Area -->
-                        <div id="test-summary" class="mt-8 p-4 rounded-2xl border border-transparent hidden text-center font-bold text-lg"></div>
-                        
-                        <div id="test-details" class="mt-4 p-6 glass border-white/5 text-[11px] font-mono space-y-4 hidden overflow-x-auto custom-scrollbar">
-                            <!-- Dynamic content from runIntegrationTest -->
+                            <div id="test-summary" class="mt-8 p-4 rounded-2xl border border-transparent hidden text-center font-bold text-lg"></div>
+                            <div id="test-details" class="mt-4 p-6 glass border-white/5 text-[11px] font-mono space-y-4 hidden overflow-x-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scenario 2: Ed25519 Flow -->
+                <div class="space-y-6 pt-12 border-t border-white/10">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold">Scenario 2: Ed25519 Integration Flow</h2>
+                        <button onclick="runEd25519IntegrationTest()" id="run-ed-test-btn" class="btn-primary px-8 py-3 rounded-xl font-bold from-purple-500 to-pink-500">Run Ed25519 Flow</button>
+                    </div>
+                    
+                    <div id="ed-test-results" class="space-y-4">
+                        <div id="ed-test-progress" class="hidden space-y-3">
+                            <div id="ed-step-1" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">01</span>
+                                    <span>Key Pair Generation & Verify Signature</span>
+                                </div>
+                                <span class="ed-status-icon bg-purple-500/10 p-1 rounded-full text-lg">⏳</span>
+                            </div>
+                            <div id="ed-step-2" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">02</span>
+                                    <span>Convert Ed25519 to X25519 (SK/PK)</span>
+                                </div>
+                                <span class="ed-status-icon bg-purple-500/10 p-1 rounded-full text-lg">⏳</span>
+                            </div>
+                            <div id="ed-step-3" class="step-card p-4 glass border-white/5 text-sm flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold">03</span>
+                                    <span>X25519 ECIES Encryption/Decryption</span>
+                                </div>
+                                <span class="ed-status-icon bg-purple-500/10 p-1 rounded-full text-lg">⏳</span>
+                            </div>
+
+                            <div id="ed-test-summary" class="mt-8 p-4 rounded-2xl border border-transparent hidden text-center font-bold text-lg"></div>
+                            <div id="ed-test-details" class="mt-4 p-6 glass border-white/5 text-[11px] font-mono space-y-4 hidden overflow-x-auto custom-scrollbar"></div>
                         </div>
                     </div>
                 </div>
@@ -411,6 +472,53 @@
             } catch (e) { alert('Error: ' + e); }
         }
 
+        async function convertToX25519() {
+            if (!currentState.edSecretKey) return alert('Generate Ed25519 keys first');
+            try {
+                const res = await fetch('/ed25519/to-x25519', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secretKey: currentState.edSecretKey,
+                        publicKey: currentState.edPublicKey
+                    })
+                });
+                const data = await res.json();
+                currentState.x25519SecretKey = data.x25519SecretKey;
+                currentState.x25519PublicKey = data.x25519PublicKey;
+                document.getElementById('x-pubkey').value = data.x25519PublicKey;
+            } catch (e) { alert('Error: ' + e); }
+        }
+
+        async function runX25519EciesTest() {
+            if (!currentState.x25519PublicKey) return alert('Convert to X25519 first');
+            const msg = document.getElementById('x-ecies-message').value;
+            try {
+                const encRes = await fetch('/ecies-x25519/encrypt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: currentState.x25519PublicKey,
+                        message: msg
+                    })
+                });
+                const encData = await encRes.json();
+                
+                const decRes = await fetch('/ecies-x25519/decrypt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secretKey: currentState.x25519SecretKey,
+                        ciphertext: encData.ciphertext
+                    })
+                });
+                const decData = await decRes.json();
+                
+                document.getElementById('x-decrypted-text').innerText = `"${decData.message}"`;
+                document.getElementById('x-ecies-result').classList.remove('hidden');
+            } catch (e) { alert('Error: ' + e); }
+        }
+
         async function runIntegrationTest() {
             const btn = document.getElementById('run-test-btn');
             const progress = document.getElementById('test-progress');
@@ -499,6 +607,77 @@
                         i.classList.add('text-red-400');
                     }
                 });
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
+        }
+
+        async function runEd25519IntegrationTest() {
+            const btn = document.getElementById('run-ed-test-btn');
+            const progress = document.getElementById('ed-test-progress');
+            const summary = document.getElementById('ed-test-summary');
+            const details = document.getElementById('ed-test-details');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            progress.classList.remove('hidden');
+            summary.classList.add('hidden');
+            details.classList.add('hidden');
+
+            document.querySelectorAll('.ed-status-icon').forEach(i => {
+                i.innerText = '⏳';
+                i.classList.remove('text-green-400', 'text-red-400');
+            });
+
+            try {
+                const res = await fetch('/integration/ed25519-test');
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                const steps = ['ed-step-1', 'ed-step-2', 'ed-step-3'];
+                for (let i = 0; i < steps.length; i++) {
+                    const stepEl = document.getElementById(steps[i]);
+                    stepEl.classList.add('active');
+                    await new Promise(r => setTimeout(r, 600));
+                    stepEl.querySelector('.ed-status-icon').innerText = '✅';
+                    stepEl.querySelector('.ed-status-icon').classList.add('text-green-400');
+                    stepEl.classList.remove('active');
+                    stepEl.classList.add('border-green-500/30');
+                }
+
+                summary.classList.remove('hidden', 'success-bg', 'error-bg');
+                if (data.overall_success) {
+                    summary.innerText = '🎉 Ed25519 Integration Flow Passed!';
+                    summary.classList.add('success-bg', 'text-green-400');
+                } else {
+                    summary.innerText = '❌ Ed25519 Flow Partial Failure';
+                    summary.classList.add('error-bg', 'text-red-400');
+                }
+
+                details.classList.remove('hidden');
+                details.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
+                            <span class="text-purple-400 font-bold block mb-1">🔑 Ed25519 PK</span>
+                            <span class="text-[10px] break-all text-slate-300 font-mono">${data.ed25519_publicKey}</span>
+                        </div>
+                        <div class="bg-pink-500/10 p-3 rounded-lg border border-pink-500/20">
+                            <span class="text-pink-400 font-bold block mb-1">🔑 X25519 PK (Converted)</span>
+                            <span class="text-[10px] break-all text-slate-300 font-mono">${data.x25519_publicKey}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-white/5 p-3 rounded-lg border border-white/5">
+                        <span class="text-slate-400 font-bold block mb-2 text-[9px] uppercase tracking-widest">X25519 ECIES Result</span>
+                        <div><span class="text-slate-500 italic">Decrypted message:</span> <span class="text-purple-400 font-bold">"${data.x25519_decrypted_message}"</span></div>
+                        <div class="font-bold text-green-400 mt-1">VERIFICATION SUCCESS</div>
+                    </div>
+                `;
+
+            } catch (e) {
+                summary.classList.remove('hidden');
+                summary.innerText = '🚫 Error: ' + e.message;
+                summary.classList.add('error-bg', 'text-red-400');
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('opacity-50');
