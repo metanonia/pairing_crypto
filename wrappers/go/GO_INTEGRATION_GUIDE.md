@@ -183,6 +183,22 @@ decrypted, _ := pairing_crypto.EciesDecrypt(keyPair.SecretKey, encrypted)
 fmt.Println(string(decrypted)) // "비밀 메시지"
 ```
 
+### 🧬 Ed25519 to X25519 (키 변환 및 ECIES)
+Ed25519 서명 키를 X25519 암호화 키로 변환하여 ECIES를 수행하는 방법입니다.
+
+```go
+// 1. Ed25519 키 생성 및 변환
+seed, _ := hex.DecodeString("...")
+edKp, _ := pairing_crypto.Ed25519KeypairFromSeed(seed)
+
+xsk, _ := pairing_crypto.Ed25519SkToX25519(edKp.SecretKey)
+xpk, _ := pairing_crypto.Ed25519PkToX25519(edKp.PublicKey)
+
+// 2. 변환된 X25519 키로 ECIES 수행
+encrypted, _ := pairing_crypto.EciesX25519Encrypt(xpk, []byte("Hello X25519"))
+decrypted, _ := pairing_crypto.EciesX25519Decrypt(xsk, encrypted)
+```
+
 ---
 
 ## 5. 종합 통합 테스트 시나리오 (5-Step)
@@ -197,6 +213,20 @@ fmt.Println(string(decrypted)) // "비밀 메시지"
 
 > [!TIP]
 > 상세 구현 로직은 `wrappers/go/example/main.go`의 `/integration/test` 엔드포인트를 참고하세요.
+
+---
+
+## 6. Ed25519 통합 테스트 플로우 (Full Flow)
+
+Ed25519 키의 생명주기 전체(생성부터 암호화 활용까지)를 검증하는 독립적인 시나리오입니다.
+
+1.  **Ed25519 키 생성**: 랜덤 시드로부터 Ed25519 키 쌍을 생성합니다.
+2.  **서명 및 검증**: 생성된 키로 메시지에 서명하고 유효성을 즉시 검증합니다.
+3.  **X25519 변환**: `birational equivalence`를 사용하여 Ed25519 키를 X25519 키로 변환합니다.
+4.  **X25519 ECIES**: 변환된 키를 사용하여 암복호화가 정상적으로 이루어지는지 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `wrappers/go/example/main.go`의 `/integration/ed25519-test` 엔드포인트를 참고하세요.
 
 ---
 
@@ -222,7 +252,8 @@ go run main.go
 - `POST /verify`: 서명 검증
 - `POST /proof/derive`: 영지식 증명 생성 (선택적 공개)
 - `POST /proof/verify`: 증명 검증
-- `GET /integration/test`: 5단계 통합 테스트 시나리오 실행 및 결과 반환
+- `GET /integration/test`: 5단계 통합 테스트 시나리오 실행 (Ethereum 기반)
+- `GET /integration/ed25519-test`: Ed25519 통합 플로우 테스트 실행
 
 ---
 

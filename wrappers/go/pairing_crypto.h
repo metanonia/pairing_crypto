@@ -586,4 +586,42 @@ int32_t pairing_crypto_ecies_decrypt(struct ByteArray privkey_bytes,
                                      struct ByteBuffer *decrypted_msg_out,
                                      struct ExternError *err);
 
+int32_t pairing_crypto_ed25519_keypair_from_seed(struct ByteArray seed,
+                                                 struct ByteBuffer *sk_out,
+                                                 struct ByteBuffer *pk_out,
+                                                 struct ExternError *err);
+
+int32_t pairing_crypto_ed25519_sign(struct ByteArray privkey,
+                                    struct ByteArray message,
+                                    struct ByteBuffer *signature_out,
+                                    struct ExternError *err);
+
+int32_t pairing_crypto_ed25519_verify(struct ByteArray pubkey,
+                                      struct ByteArray message,
+                                      struct ByteArray signature,
+                                      struct ExternError *err);
+
+int32_t pairing_crypto_ed25519_sk_to_x25519(struct ByteArray privkey,
+                                          struct ByteBuffer *x25519_sk_out,
+                                          struct ExternError *err);
+
+int32_t pairing_crypto_ed25519_pk_to_x25519(struct ByteArray pubkey,
+                                          struct ByteBuffer *x25519_pk_out,
+                                          struct ExternError *err);
+
+int32_t pairing_crypto_ecies_x25519_keypair_from_bytes(struct ByteArray privkey_bytes,
+                                                struct ByteBuffer *sk_out,
+                                                struct ByteBuffer *pk_out,
+                                                struct ExternError *err);
+
+int32_t pairing_crypto_ecies_x25519_encrypt(struct ByteArray pubkey_bytes,
+                                     struct ByteArray msg,
+                                     struct ByteBuffer *encrypted_msg_out,
+                                     struct ExternError *err);
+
+int32_t pairing_crypto_ecies_x25519_decrypt(struct ByteArray privkey_bytes,
+                                     struct ByteArray encrypted_data,
+                                     struct ByteBuffer *decrypted_msg_out,
+                                     struct ExternError *err);
+
 #endif  /* __pairing__crypto__included__ */

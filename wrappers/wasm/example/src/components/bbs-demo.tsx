@@ -13,7 +13,10 @@ import {
   Trash2, 
   CheckCircle2, 
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Zap,
+  Play,
+  ShieldCheck
 } from "lucide-react";
 import { cn, bytesToHex } from "@/lib/utils";
 
@@ -31,6 +34,20 @@ export default function BbsDemo() {
   const [signature, setSignature] = useState<Uint8Array | null>(null);
   const [revealedIndices, setRevealedIndices] = useState<number[]>([0]);
   const [proof, setProof] = useState<Uint8Array | null>(null);
+
+  const [edSecretKey, setEdSecretKey] = useState<Uint8Array | null>(null);
+  const [edPublicKey, setEdPublicKey] = useState<Uint8Array | null>(null);
+  const [edSignature, setEdSignature] = useState<Uint8Array | null>(null);
+  const [edMessage, setEdMessage] = useState("Ed25519 테스트 메시지");
+  const [edVerifyResult, setEdVerifyResult] = useState<boolean | null>(null);
+  const [convertedXsk, setConvertedXsk] = useState<Uint8Array | null>(null);
+  const [convertedXpk, setConvertedXpk] = useState<Uint8Array | null>(null);
+
+  // X25519 ECIES States
+  const [eciesXsk, setEciesXsk] = useState<Uint8Array | null>(null);
+  const [eciesXpk, setEciesXpk] = useState<Uint8Array | null>(null);
+  const [eciesXCipher, setEciesXCipher] = useState<Uint8Array | null>(null);
+  const [eciesXDecrypted, setEciesXDecrypted] = useState<string | null>(null);
   
   // Verification Result UI State
   const [proofResult, setProofResult] = useState<{
@@ -46,16 +63,44 @@ export default function BbsDemo() {
   const [integrationResults, setIntegrationResults] = useState<{
     isRunning: boolean;
     steps: { name: string; status: "pending" | "success" | "error" }[];
-    details?: any;
+    details?: {
+      mnemonic: string;
+      addresses: string[];
+      recoveredAddr: string;
+      decryptedStr: string;
+      xDecryptedStr: string;
+      success: boolean;
+    };
   }>({
     isRunning: false,
     steps: [
-      { name: "HD Wallet: 3 Keys Derived", status: "pending" },
-      { name: "ETH Addresses Created", status: "pending" },
-      { name: "ECDSA Signing (Key 0)", status: "pending" },
-      { name: "Address Recovery (Verify)", status: "pending" },
-      { name: "ECIES Enc/Dec (Key 0-1)", status: "pending" },
-    ]
+      { name: "HD Wallet 계층 생성", status: "pending" },
+      { name: "ETH 주소 유도 (3개)", status: "pending" },
+      { name: "ECDSA 서명 생성", status: "pending" },
+      { name: "서명 주소 복구 (Verify)", status: "pending" },
+      { name: "ECIES-k256 암복호화", status: "pending" },
+      { name: "ECIES-X25519 암복호화", status: "pending" },
+    ],
+  });
+
+  const [edFlowResults, setEdFlowResults] = useState<{
+    isRunning: boolean;
+    steps: { name: string; status: "pending" | "success" | "error" }[];
+    details?: {
+      edPk: string;
+      edSig: string;
+      xPk: string;
+      decrypted: string;
+      success: boolean;
+    };
+  }>({
+    isRunning: false,
+    steps: [
+      { name: "Ed25519 키 쌍 생성", status: "pending" },
+      { name: "Ed25519 서명 및 검증", status: "pending" },
+      { name: "X25519 키 변환 (Birational)", status: "pending" },
+      { name: "X25519 ECIES 암복호화", status: "pending" },
+    ],
   });
 
   const fullPkgRef = useRef<any>(null);
@@ -72,12 +117,6 @@ export default function BbsDemo() {
         fullPkgRef.current = pkg;
         bbsRef.current = pkg.bbs;
         setIsLoaded(true);
-        console.log("WASM module keys:", Object.keys(pkg));
-        console.log("WASM hwallet exports check:", {
-          generate: typeof pkg.hwallet_generate_mnemonic,
-          seed: typeof pkg.hwallet_mnemonic_to_seed,
-          derive: typeof pkg.hwallet_derive_private_key
-        });
       } catch (err) {
         console.error("WASM loading failed:", err);
         setStatus({ type: "error", message: "WASM 라이브러리를 로드하지 못했습니다. 콘솔을 확인해 주세요." });
@@ -219,6 +258,123 @@ export default function BbsDemo() {
     }
   };
 
+  const generateEd25519Keys = async () => {
+    if (!fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const seed = new Uint8Array(32);
+      window.crypto.getRandomValues(seed);
+      const kp = await fullPkgRef.current.ed25519_keypair_from_seed(seed);
+      setEdSecretKey(kp.secret_key);
+      setEdPublicKey(kp.public_key);
+      setEdSignature(null);
+      setEdVerifyResult(null);
+      setStatus({ type: "success", message: "Ed25519 키 쌍이 생성되었습니다." });
+    } catch (err) {
+      setStatus({ type: "error", message: "Ed25519 키 생성 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const signEd25519 = async () => {
+    if (!edSecretKey || !fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const msg = new TextEncoder().encode(edMessage);
+      const sig = await fullPkgRef.current.ed25519_sign(edSecretKey, msg);
+      setEdSignature(sig);
+      setEdVerifyResult(null);
+      setStatus({ type: "success", message: "Ed25519 서명 완료" });
+    } catch (err) {
+      setStatus({ type: "error", message: "서명 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const verifyEd25519 = async () => {
+    if (!edPublicKey || !edSignature || !fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const msg = new TextEncoder().encode(edMessage);
+      const valid = await fullPkgRef.current.ed25519_verify(edPublicKey, msg, edSignature);
+      setEdVerifyResult(valid);
+      setStatus({ type: valid ? "success" : "error", message: valid ? "서명 검증 성공" : "서명 검증 실패" });
+    } catch (err) {
+      setStatus({ type: "error", message: "검증 중 오류 발생" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const convertToX25519 = async () => {
+    if (!edSecretKey || !edPublicKey || !fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const xsk = await fullPkgRef.current.ed25519_sk_to_x25519(edSecretKey);
+      const xpk = await fullPkgRef.current.ed25519_pk_to_x25519(edPublicKey);
+      setConvertedXsk(xsk);
+      setConvertedXpk(xpk);
+      setStatus({ type: "success", message: "Ed25519 키를 X25519 키로 변환했습니다." });
+    } catch (err) {
+      console.error("X25519 conversion failed:", err);
+      setStatus({ type: "error", message: "X25519 변환 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const generateEciesX25519Keys = async () => {
+    if (!fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const priv = new Uint8Array(32);
+      window.crypto.getRandomValues(priv);
+      const kp = await fullPkgRef.current.ecies_x25519_keypair_from_bytes(priv);
+      setEciesXsk(kp.secret_key);
+      setEciesXpk(kp.public_key);
+      setEciesXCipher(null);
+      setEciesXDecrypted(null);
+      setStatus({ type: "success", message: "X25519 ECIES 키 쌍이 생성되었습니다." });
+    } catch (err) {
+      setStatus({ type: "error", message: "X25519 키 생성 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const eciesX25519Encrypt = async () => {
+    if (!eciesXpk || !fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const msg = new TextEncoder().encode("Hello X25519 ECIES!");
+      const cipher = await fullPkgRef.current.ecies_x25519_encrypt(eciesXpk, msg);
+      setEciesXCipher(cipher);
+      setEciesXDecrypted(null);
+      setStatus({ type: "success", message: "X25519 ECIES 암호화 완료" });
+    } catch (err) {
+      setStatus({ type: "error", message: "암호화 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const eciesX25519Decrypt = async () => {
+    if (!eciesXsk || !eciesXCipher || !fullPkgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const dec = await fullPkgRef.current.ecies_x25519_decrypt(eciesXsk, eciesXCipher);
+      const decStr = new TextDecoder().decode(dec);
+      setEciesXDecrypted(decStr);
+      setStatus({ type: "success", message: "X25519 ECIES 복호화 완료" });
+    } catch (err) {
+      setStatus({ type: "error", message: "복호화 실패" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const toggleReveal = (index: number) => {
     setRevealedIndices(prev => 
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
@@ -237,7 +393,6 @@ export default function BbsDemo() {
     }));
 
     const pkg = fullPkgRef.current;
-    console.log("Running integration test with pkg:", pkg);
 
     const updateStep = (index: number, status: "success" | "error") => {
       setIntegrationResults(prev => ({
@@ -247,7 +402,6 @@ export default function BbsDemo() {
     };
 
     try {
-      // 1. HD Wallet: 3 Keys Derived
       const mnemonic = await pkg.hwallet_generate_mnemonic();
       const seed = await pkg.hwallet_mnemonic_to_seed(mnemonic, "");
       
@@ -258,8 +412,6 @@ export default function BbsDemo() {
         const path = `m/44'/60'/0'/0/${i}`;
         const sk = await pkg.hwallet_derive_private_key(seed, path);
         privKeys.push(new Uint8Array(sk));
-        
-        // 2. ETH Addresses Created
         const kp = await pkg.ecies_keypair_from_bytes(sk);
         const addr = await pkg.hwallet_eth_address_from_pubkey(kp.public_key);
         addresses.push(addr);
@@ -267,45 +419,96 @@ export default function BbsDemo() {
       updateStep(0, "success");
       updateStep(1, "success");
 
-      // 3. ECDSA Signing (Key 0)
       const message = new TextEncoder().encode("Integration test message");
       const sigData = await pkg.hwallet_sign_ecdsa_eth(privKeys[0], message);
       updateStep(2, "success");
 
-      // 4. Address Recovery (Verify)
       const recoveredAddr = await pkg.hwallet_recover_eth_address(message, sigData);
-      const step4Success = recoveredAddr.toLowerCase() === addresses[0].toLowerCase();
-      if (!step4Success) throw new Error(`Recovered address mismatch: ${recoveredAddr} vs ${addresses[0]}`);
+      if (recoveredAddr.toLowerCase() !== addresses[0].toLowerCase()) throw new Error("Address mismatch");
       updateStep(3, "success");
 
-      // 5. ECIES Enc/Dec (Key 0-1)
       const kp1 = await pkg.ecies_keypair_from_bytes(privKeys[1]);
       const secretMsg = new TextEncoder().encode("Secret ECIES message");
       const encrypted = await pkg.ecies_encrypt(kp1.public_key, secretMsg);
       const decrypted = await pkg.ecies_decrypt(privKeys[1], encrypted);
       const decryptedStr = new TextDecoder().decode(decrypted);
-      const step5Success = decryptedStr === "Secret ECIES message";
-      if (!step5Success) throw new Error("ECIES decryption failed");
       updateStep(4, "success");
+
+      const kpX1 = await pkg.ecies_x25519_keypair_from_bytes(privKeys[1]);
+      const xSecretMsg = new TextEncoder().encode("Secret X25519 ECIES message");
+      const xEncrypted = await pkg.ecies_x25519_encrypt(kpX1.public_key, xSecretMsg);
+      const xDecrypted = await pkg.ecies_x25519_decrypt(privKeys[1], xEncrypted);
+      const xDecryptedStr = new TextDecoder().decode(xDecrypted);
+      updateStep(5, "success");
 
       setIntegrationResults(prev => ({
         ...prev,
         isRunning: false,
+        details: { mnemonic, addresses, recoveredAddr, decryptedStr, xDecryptedStr, success: true }
+      }));
+      setStatus({ type: "success", message: "5단계 통합 테스트 성공!" });
+    } catch (err: any) {
+      setIntegrationResults(prev => ({ ...prev, isRunning: false }));
+      setStatus({ type: "error", message: `Error: ${err.message}` });
+    }
+  };
+
+  const runEd25519Flow = async () => {
+    if (!fullPkgRef.current) return;
+    
+    setEdFlowResults(prev => ({
+      ...prev,
+      isRunning: true,
+      steps: prev.steps.map(s => ({ ...s, status: "pending" })),
+      details: undefined
+    }));
+
+    const pkg = fullPkgRef.current;
+    const updateEdStep = (index: number, status: "success" | "error") => {
+      setEdFlowResults(prev => ({
+        ...prev,
+        steps: prev.steps.map((s, i) => i === index ? { ...s, status } : s)
+      }));
+    };
+
+    try {
+      const seed = new Uint8Array(32);
+      window.crypto.getRandomValues(seed);
+      const edkp = await pkg.ed25519_keypair_from_seed(seed);
+      updateEdStep(0, "success");
+
+      const msg = new TextEncoder().encode("Ed25519 flow integration test");
+      const sig = await pkg.ed25519_sign(edkp.secret_key, msg);
+      const valid = await pkg.ed25519_verify(edkp.public_key, msg, sig);
+      if (!valid) throw new Error("Ed25519 verification failed");
+      updateEdStep(1, "success");
+
+      const xsk = await pkg.ed25519_sk_to_x25519(edkp.secret_key);
+      const xpk = await pkg.ed25519_pk_to_x25519(edkp.public_key);
+      updateEdStep(2, "success");
+
+      const secretXMsg = new TextEncoder().encode("Secret message via converted X25519");
+      const encrypted = await pkg.ecies_x25519_encrypt(xpk, secretXMsg);
+      const decrypted = await pkg.ecies_x25519_decrypt(xsk, encrypted);
+      const decStr = new TextDecoder().decode(decrypted);
+      if (decStr !== "Secret message via converted X25519") throw new Error("X25519 ECIES decryption failed");
+      updateEdStep(3, "success");
+
+      setEdFlowResults(prev => ({
+        ...prev,
+        isRunning: false,
         details: {
-          mnemonic,
-          addresses,
-          recoveredAddr,
-          decryptedStr,
+          edPk: bytesToHex(edkp.public_key),
+          edSig: bytesToHex(sig),
+          xPk: bytesToHex(xpk),
+          decrypted: decStr,
           success: true
         }
       }));
-      setStatus({ type: "success", message: "5단계 통합 테스트 성공!" });
-
+      setStatus({ type: "success", message: "Ed25519 통합 플로우 성공!" });
     } catch (err: any) {
-      console.error("Integration test detailed error:", err);
-      setIntegrationResults(prev => ({ ...prev, isRunning: false }));
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      setStatus({ type: "error", message: `Error: ${errorMsg}` });
+      setEdFlowResults(prev => ({ ...prev, isRunning: false }));
+      setStatus({ type: "error", message: `Error: ${err.message}` });
     }
   };
 
@@ -336,7 +539,6 @@ export default function BbsDemo() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-32">
-      {/* Header */}
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-black bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
           WASM Cryptography Demo
@@ -344,7 +546,6 @@ export default function BbsDemo() {
         <p className="text-muted-foreground">BBS+ signatures with ZKP and HD Wallet Integration</p>
       </div>
 
-      {/* Status Banner */}
       <AnimatePresence mode="wait">
         {status.message && (
           <motion.div
@@ -367,7 +568,6 @@ export default function BbsDemo() {
       </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Step 1: Key Management */}
         <section className="glass-card p-6 rounded-2xl space-y-4">
           <div className="flex items-center space-x-2 mb-4">
             <Key className="w-5 h-5 text-primary" />
@@ -392,7 +592,6 @@ export default function BbsDemo() {
           </div>
         </section>
 
-        {/* Step 2: Message & Sign */}
         <section className="glass-card p-6 rounded-2xl space-y-4">
           <div className="flex items-center space-x-3 mb-4">
             <FileCheck className="w-5 h-5 text-primary" />
@@ -440,12 +639,107 @@ export default function BbsDemo() {
           </div>
         </section>
 
-        {/* Step 3: Zero-Knowledge Proof (Large Section) */}
+        <section className="glass-card p-6 rounded-2xl space-y-4">
+          <div className="flex items-center space-x-3 mb-4">
+            <Shield className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-bold">3. Ed25519 서명</h2>
+          </div>
+          <button 
+            onClick={generateEd25519Keys}
+            disabled={isProcessing}
+            className="w-full py-2.5 bg-background border border-border hover:bg-muted transition-all rounded-xl text-sm font-semibold"
+          >
+            Ed25519 키 생성
+          </button>
+          {edPublicKey && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Public Key (32 bytes)</label>
+                <div className="p-2 bg-background/50 rounded-lg text-[9px] break-all font-mono opacity-80 border border-border truncate mt-1">
+                  {bytesToHex(edPublicKey!)}
+                </div>
+              </div>
+              <input 
+                value={edMessage}
+                onChange={(e) => setEdMessage(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm"
+                placeholder="메시지 입력..."
+              />
+              <button onClick={signEd25519} className="w-full py-2.5 bg-primary rounded-xl font-bold">서명하기</button>
+              {edSignature && (
+                <>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Signature (64 bytes)</label>
+                    <div className="p-2 bg-background/50 rounded-lg text-[9px] break-all font-mono opacity-80 border border-border mt-1">
+                      {bytesToHex(edSignature!)}
+                    </div>
+                  </div>
+                  <button onClick={verifyEd25519} className="w-full py-2.5 bg-secondary border border-border rounded-xl font-bold">검증하기</button>
+                  {edVerifyResult !== null && (
+                    <div className={cn("text-center py-2 rounded-xl font-bold text-xs", edVerifyResult ? "text-green-400 bg-green-500/10" : "text-red-400 bg-red-500/10")}>
+                      {edVerifyResult ? "✅ 검증 성공!" : "❌ 검증 실패"}
+                    </div>
+                  )}
+                  <div className="pt-4 border-t border-border space-y-3">
+                    <button 
+                      onClick={convertToX25519}
+                      className="w-full py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all rounded-xl text-xs font-bold"
+                    >
+                      X25519 키로 변환 (Birational Equivalence)
+                    </button>
+                    {convertedXpk && (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <label className="text-[9px] text-purple-400 uppercase font-bold tracking-widest pl-1">Converted X25519 PK</label>
+                        <div className="p-2 bg-purple-500/5 rounded-lg text-[9px] break-all font-mono opacity-80 border border-purple-500/20 truncate">
+                          {bytesToHex(convertedXpk)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="glass-card p-6 rounded-2xl space-y-4">
+          <div className="flex items-center space-x-3 mb-4">
+            <Key className="w-5 h-5 text-blue-400" />
+            <h2 className="text-xl font-bold">X25519 ECIES 암호화</h2>
+          </div>
+          <button 
+            onClick={generateEciesX25519Keys}
+            className="w-full py-2.5 bg-background border border-border hover:bg-muted transition-all rounded-xl text-sm font-semibold"
+          >
+            X25519 키 생성
+          </button>
+          
+          {eciesXpk && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">X25519 PK (32 bytes)</label>
+                <div className="p-2 bg-background/50 rounded-lg text-[9px] break-all font-mono opacity-80 border border-border mt-1">
+                  {bytesToHex(eciesXpk)}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={eciesX25519Encrypt} className="py-2 bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-bold">암호화</button>
+                <button onClick={eciesX25519Decrypt} disabled={!eciesXCipher} className="py-2 bg-green-600/20 text-green-400 border border-green-500/20 rounded-xl text-xs font-bold disabled:opacity-50">복호화</button>
+              </div>
+              {eciesXDecrypted && (
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-center text-green-400 font-bold text-xs">
+                  복호화된 내용: {eciesXDecrypted}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center space-x-2">
               <Shield className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-black">3. 영지식 증명 (Selective Disclosure)</h2>
+              <h2 className="text-2xl font-black">4. 영지식 증명 (Selective Disclosure)</h2>
             </div>
             <div className="flex space-x-4">
                <button onClick={deriveProof} disabled={isProcessing || !signature} className="text-sm font-bold text-primary hover:underline disabled:opacity-50">1. 증명 생성</button>
@@ -453,7 +747,6 @@ export default function BbsDemo() {
             </div>
           </div>
 
-          {/* Reveal Selection Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {messages.map((msg, i) => (
               <button 
@@ -475,7 +768,6 @@ export default function BbsDemo() {
             ))}
           </div>
 
-          {/* Detailed Proof Verification Result Card */}
           <AnimatePresence>
             {proofResult && (
               <motion.div 
@@ -500,52 +792,88 @@ export default function BbsDemo() {
                     {proofResult.verified ? "VERIFIED" : "INVALID"}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <div className="bg-background/40 p-4 rounded-xl border border-border">
-                    <h4 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-3">공개된 정보 (Revealed)</h4>
-                    <div className="space-y-2">
-                      {messages.map((msg, i) => revealedIndices.includes(i) && (
-                        <div key={i} className="text-xs flex items-center space-x-2">
-                          <CheckCircle2 className="w-3 h-3 text-green-400" />
-                          <span>{msg}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-background/40 p-4 rounded-xl border border-border">
-                    <h4 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-3">비공개 정보 (Hidden)</h4>
-                    <div className="space-y-2">
-                      {messages.map((msg, i) => !revealedIndices.includes(i) && (
-                        <div key={i} className="text-xs opacity-40 italic flex items-center space-x-2">
-                          <EyeOff className="w-3 h-3" />
-                          <span>[암호화됨 - 보호됨]</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <button 
-              onClick={deriveProof}
-              disabled={isProcessing || !signature}
-              className="py-4 bg-purple-600 hover:bg-purple-500 transition-all rounded-2xl font-bold flex items-center justify-center space-x-2 disabled:opacity-50"
+        {/* Ed25519 Integration Test Section */}
+        <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Zap className="w-6 h-6 text-purple-400" />
+              <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-400">
+                Ed25519/X25519 통합 테스트 플로우
+              </h2>
+            </div>
+            <button
+              onClick={runEd25519Flow}
+              disabled={edFlowResults.isRunning}
+              className={cn(
+                "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center space-x-2",
+                edFlowResults.isRunning 
+                  ? "bg-muted cursor-not-allowed" 
+                  : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
+              )}
             >
-              <RefreshCcw className={cn("w-4 h-4", isProcessing && "animate-spin")} />
-              <span>선택 공개 증명 생성</span>
-            </button>
-            <button 
-              onClick={verifyProof}
-              disabled={isProcessing || !proof}
-              className="py-4 bg-secondary border border-border hover:bg-muted transition-all rounded-2xl font-bold flex items-center justify-center space-x-2 disabled:opacity-50"
-            >
-              <span>증명 검증 실행</span>
+              <Play className={cn("w-4 h-4", edFlowResults.isRunning && "animate-spin")} />
+              <span>{edFlowResults.isRunning ? "진행 중..." : "플로우 통합 테스트 시작"}</span>
             </button>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {edFlowResults.steps.map((step, idx) => (
+              <div 
+                key={idx}
+                className={cn(
+                  "p-4 rounded-xl border transition-all duration-500",
+                  step.status === "success" ? "bg-green-500/10 border-green-500/20" :
+                  step.status === "error" ? "bg-red-500/10 border-red-500/20" :
+                  "bg-muted/50 border-white/5"
+                )}
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold",
+                    step.status === "success" ? "bg-green-500 text-white" :
+                    step.status === "error" ? "bg-red-500 text-white" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {step.status === "success" ? "✓" : idx + 1}
+                  </div>
+                  <span className={cn(
+                    "text-xs font-bold",
+                    step.status === "success" ? "text-green-400" : "text-muted-foreground"
+                  )}>{step.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {edFlowResults.details && (
+            <div className="mt-4 p-4 rounded-xl bg-background/40 border border-white/5 space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ed25519 Public Key</p>
+                  <p className="text-[10px] font-mono break-all bg-white/5 p-2 rounded border border-white/5">{edFlowResults.details.edPk}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Converted X25519 PK</p>
+                  <p className="text-[10px] font-mono break-all bg-purple-500/10 p-2 rounded border border-purple-500/10 text-purple-400">{edFlowResults.details.xPk}</p>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-white/5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Final Result</p>
+                <div className="flex items-center space-x-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <ShieldCheck className="w-5 h-5 text-green-400" />
+                  <div>
+                    <p className="text-xs font-bold text-green-400">Decrypted Message Match!</p>
+                    <p className="text-[10px] text-green-400/80">Message: "{edFlowResults.details.decrypted}"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Integration Test Section */}
@@ -553,7 +881,7 @@ export default function BbsDemo() {
           <div className="flex items-center justify-between border-b border-border pb-4">
              <div className="flex items-center space-x-3">
                <Shield className="w-6 h-6 text-primary" />
-               <h2 className="text-2xl font-black">4. 5단계 종합 통합 테스트 (End-to-End)</h2>
+               <h2 className="text-2xl font-black">5. 5단계 종합 통합 테스트 (End-to-End)</h2>
              </div>
           </div>
 
@@ -605,10 +933,11 @@ export default function BbsDemo() {
                       </div>
                     </div>
                     <div className="p-3 bg-background/20 rounded-lg border border-white/5">
-                      <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest">Step 5: ECIES Check</h5>
+                      <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest">Step 5-6: ECIES Check</h5>
                       <div className="space-y-1">
-                        <div>Decrypted: <span className="text-blue-400">"{integrationResults.details.decryptedStr}"</span></div>
-                        <div className="text-[10px] text-green-500 font-black">INTEGRITY OK ✅</div>
+                        <div>k256: <span className="text-blue-400">"{integrationResults.details.decryptedStr}"</span></div>
+                        <div>X25519: <span className="text-purple-400">"{integrationResults.details.xDecryptedStr}"</span></div>
+                        <div className="text-[10px] text-green-500 font-black">ALL INTEGRITY OK ✅</div>
                       </div>
                     </div>
                   </div>

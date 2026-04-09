@@ -83,4 +83,43 @@ public class IntegrationController {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @GetMapping("/ed25519-test")
+    public ResponseEntity<?> runEd25519IntegrationTest() {
+        try {
+            // 1. Ed25519 키 쌍 생성
+            byte[] seed = new byte[32];
+            new java.security.SecureRandom().nextBytes(seed);
+            pairing_crypto.Ed25519.KeyPair edkp = pairing_crypto.Ed25519.generateKeyPairFromSeed(seed);
+
+            // 2. Ed25519 서명 및 검증
+            byte[] message = "Ed25519 flow integration test".getBytes();
+            byte[] signature = pairing_crypto.Ed25519.signMessage(edkp.secretKey, message);
+            boolean valid = pairing_crypto.Ed25519.verifySignature(edkp.publicKey, message, signature);
+
+            // 3. X25519 변환
+            byte[] xsk = pairing_crypto.Ed25519.convertSkToX25519(edkp.secretKey);
+            byte[] xpk = pairing_crypto.Ed25519.convertPkToX25519(edkp.publicKey);
+
+            // 4. X25519 ECIES 암복호화 (변환된 키 사용)
+            byte[] secretMsg = "Secret message via converted X25519".getBytes();
+            byte[] encrypted = pairing_crypto.Ecies.encryptMessageX25519(xpk, secretMsg);
+            byte[] decrypted = pairing_crypto.Ecies.decryptMessageX25519(xsk, encrypted);
+
+            String decryptedStr = new String(decrypted);
+            boolean step4Success = decryptedStr.equals("Secret message via converted X25519");
+
+            return ResponseEntity.ok(Map.of(
+                "ed25519_publicKey", hex.formatHex(edkp.publicKey),
+                "ed25519_signature", hex.formatHex(signature),
+                "ed25519_is_valid", valid,
+                "x25519_publicKey", hex.formatHex(xpk),
+                "x25519_decrypted_message", decryptedStr,
+                "x25519_success", step4Success,
+                "overall_success", valid && step4Success
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

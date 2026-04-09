@@ -183,6 +183,22 @@ byte[] decrypted = Ecies.decrypt(keyPair.secretKey, encrypted);
 System.out.println(new String(decrypted)); // "비밀 메시지"
 ```
 
+### 🧬 Ed25519 to X25519 (키 변환 및 ECIES)
+Ed25519 서명 키를 X25519 암호화 키로 변환하여 ECIES를 수행하는 방법입니다.
+
+```java
+// 1. Ed25519 키 생성 및 변환
+byte[] seed = new byte[32]; // SecureRandom...
+Ed25519.KeyPair edKp = Ed25519.generateKeyPairFromSeed(seed);
+
+byte[] xsk = Ed25519.convertSkToX25519(edKp.secretKey);
+byte[] xpk = Ed25519.convertPkToX25519(edKp.publicKey);
+
+// 2. 변환된 X25519 키로 ECIES 수행
+byte[] encrypted = Ecies.encryptMessageX25519(xpk, "Hello X25519".getBytes());
+byte[] decrypted = Ecies.decryptMessageX25519(xsk, encrypted);
+```
+
 ---
 
 ## 6. 종합 통합 테스트 시나리오 (5-Step)
@@ -197,6 +213,20 @@ System.out.println(new String(decrypted)); // "비밀 메시지"
 
 > [!TIP]
 > 상세 구현 로직은 `wrappers/java/example/src/main/java/com/example/bbs/controller/IntegrationController.java`의 `/api/integration/test` 엔드포인트를 참고하세요.
+
+---
+
+## 7. Ed25519 통합 테스트 플로우 (Full Flow)
+
+Ed25519 키의 생명주기 전체를 검증하는 독립적인 시나리오입니다.
+
+1.  **Ed25519 키 생성**: 랜덤 시드로부터 Ed25519 키 쌍을 생성합니다.
+2.  **서명 및 검증**: 생성된 키로 메시지에 서명하고 유효성을 즉시 검증합니다.
+3.  **X25519 변환**: `birational equivalence`를 사용하여 Ed25519 키를 X25519 키로 변환합니다.
+4.  **X25519 ECIES**: 변환된 키를 사용하여 암복호화가 정상적으로 이루어지는지 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `IntegrationController.java`의 `/integration/ed25519-test` 엔드포인트를 참고하세요.
 
 ---
 
@@ -218,7 +248,8 @@ cd wrappers/java/example
 - `POST /api/bbs/verify`: 서명 검증
 - `POST /api/bbs/proof/derive`: 선택적 공개 증명 생성
 - `POST /api/bbs/proof/verify`: 증명 검증
-- `GET /api/integration/test`: 5단계 통합 테스트 시나리오 실행
+- `GET /api/integration/test`: 5단계 통합 테스트 시나리오 실행 (Ethereum 기반)
+- `GET /integration/ed25519-test`: Ed25519 통합 플로우 테스트 실행
 
 ---
 

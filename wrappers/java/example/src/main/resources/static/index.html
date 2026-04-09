@@ -67,6 +67,7 @@
                 <button onclick="showTab('keygen')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition active" id="btn-keygen">Key Generation</button>
                 <button onclick="showTab('sign')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-sign">Signing</button>
                 <button onclick="showTab('proof')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-proof">ZKP & Disclosure</button>
+                <button onclick="showTab('ed25519')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-ed25519">Ed25519</button>
                 <button onclick="showTab('integration')" class="tab-btn px-4 py-2 rounded-lg hover:bg-white/5 transition" id="btn-integration">Integration Test</button>
             </div>
 
@@ -126,6 +127,31 @@
                 <div>
                     <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Proof Data (Hex)</label>
                     <textarea id="proof-display" readonly class="input-field h-32 font-mono text-xs opacity-70" placeholder="Derived proof will appear here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Ed25519 Tab -->
+            <div id="tab-ed25519" class="tab-content space-y-6">
+                <h2 class="text-xl font-semibold">Ed25519 Signature</h2>
+                <div class="space-y-4">
+                    <div class="flex gap-4">
+                        <button onclick="generateEd25519Keys()" class="btn-primary flex-1 py-2 rounded-xl font-medium">Generate Ed25519 Keys</button>
+                    </div>
+                    <div>
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Ed25519 Public Key</label>
+                        <input id="ed-pubkey" readonly class="input-field font-mono text-xs opacity-70" placeholder="Public key...">
+                    </div>
+                    <div>
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Message to Sign</label>
+                        <input id="ed-message" class="input-field" value="This is a test message for Ed25519">
+                    </div>
+                    <button onclick="signEd25519()" class="btn-primary w-full py-3 rounded-xl font-semibold">Sign Message</button>
+                    <div>
+                        <label class="text-sm text-slate-400 mb-1 block uppercase tracking-wider font-bold text-[10px]">Signature (64 bytes)</label>
+                        <textarea id="ed-signature" readonly class="input-field h-20 font-mono text-xs opacity-70" placeholder="Signature..."></textarea>
+                    </div>
+                    <button onclick="verifyEd25519()" class="bg-white/10 hover:bg-white/20 w-full py-3 rounded-xl font-semibold transition">Verify Signature</button>
+                    <div id="ed-verify-result" class="p-4 rounded-xl border border-transparent hidden text-center font-medium"></div>
                 </div>
             </div>
 
@@ -198,7 +224,10 @@
             secretKey: '',
             signature: '',
             messages: [],
-            proof: ''
+            proof: '',
+            edSecretKey: '',
+            edPublicKey: '',
+            edSignature: ''
         };
 
         function showTab(tabId) {
@@ -326,6 +355,60 @@
                     resultDiv.classList.add('error-bg', 'text-red-400');
                 }
             } catch (e) { alert('Error verifying proof: ' + e); }
+        }
+
+        async function generateEd25519Keys() {
+            try {
+                const res = await fetch('/ed25519/keys');
+                const data = await res.json();
+                currentState.edPublicKey = data.publicKey;
+                currentState.edSecretKey = data.secretKey;
+                document.getElementById('ed-pubkey').value = data.publicKey;
+            } catch (e) { alert('Error: ' + e); }
+        }
+
+        async function signEd25519() {
+            if (!currentState.edSecretKey) return alert('Generate keys first');
+            const msg = document.getElementById('ed-message').value;
+            try {
+                const res = await fetch('/ed25519/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secretKey: currentState.edSecretKey,
+                        message: msg
+                    })
+                });
+                const data = await res.json();
+                currentState.edSignature = data.signature;
+                document.getElementById('ed-signature').value = data.signature;
+            } catch (e) { alert('Error: ' + e); }
+        }
+
+        async function verifyEd25519() {
+            if (!currentState.edSignature) return alert('Sign message first');
+            const msg = document.getElementById('ed-message').value;
+            try {
+                const res = await fetch('/ed25519/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: currentState.edPublicKey,
+                        message: msg,
+                        signature: currentState.edSignature
+                    })
+                });
+                const data = await res.json();
+                const resultDiv = document.getElementById('ed-verify-result');
+                resultDiv.classList.remove('hidden', 'success-bg', 'error-bg');
+                if (data.valid) {
+                    resultDiv.innerText = '✅ Ed25519 Signature Valid!';
+                    resultDiv.classList.add('success-bg', 'text-green-400');
+                } else {
+                    resultDiv.innerText = '❌ Ed25519 Signature Invalid';
+                    resultDiv.classList.add('error-bg', 'text-red-400');
+                }
+            } catch (e) { alert('Error: ' + e); }
         }
 
         async function runIntegrationTest() {

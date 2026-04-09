@@ -175,6 +175,144 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"valid": valid})
 	})
 
+	// --- Ed25519 Endpoints ---
+
+	r.GET("/ed25519/keys", func(c *gin.Context) {
+		seed := make([]byte, 32)
+		// rand.Read(seed) should be used in production
+		kp, err := pairing_crypto.Ed25519KeypairFromSeed(seed)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"publicKey": hex.EncodeToString(kp.PublicKey),
+			"secretKey": hex.EncodeToString(kp.SecretKey),
+		})
+	})
+
+	r.POST("/ed25519/sign", func(c *gin.Context) {
+		var req struct {
+			SecretKey string `json:"secretKey" binding:"required"`
+			Message   string `json:"message" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		sk, _ := hex.DecodeString(req.SecretKey)
+		sig, err := pairing_crypto.Ed25519Sign(sk, []byte(req.Message))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"signature": hex.EncodeToString(sig)})
+	})
+
+	r.POST("/ed25519/verify", func(c *gin.Context) {
+		var req struct {
+			PublicKey string `json:"publicKey" binding:"required"`
+			Message   string `json:"message" binding:"required"`
+			Signature string `json:"signature" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		pk, _ := hex.DecodeString(req.PublicKey)
+		sig, _ := hex.DecodeString(req.Signature)
+		valid, err := pairing_crypto.Ed25519Verify(pk, []byte(req.Message), sig)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"valid": valid})
+	})
+
+	r.POST("/ed25519/to-x25519", func(c *gin.Context) {
+		var req struct {
+			SecretKey string `json:"secretKey"`
+			PublicKey string `json:"publicKey"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		resp := gin.H{}
+		if req.SecretKey != "" {
+			sk, _ := hex.DecodeString(req.SecretKey)
+			xsk, err := pairing_crypto.Ed25519SkToX25519(sk)
+			if err == nil {
+				resp["x25519SecretKey"] = hex.EncodeToString(xsk)
+			}
+		}
+		if req.PublicKey != "" {
+			pk, _ := hex.DecodeString(req.PublicKey)
+			xpk, err := pairing_crypto.Ed25519PkToX25519(pk)
+			if err == nil {
+				resp["x25519PublicKey"] = hex.EncodeToString(xpk)
+			}
+		}
+		c.JSON(http.StatusOK, resp)
+	})
+
+	// --- X25519 ECIES Endpoints ---
+
+	r.GET("/ecies-x25519/keys", func(c *gin.Context) {
+		priv := make([]byte, 32) // In real world, use rand.Read or user input
+		kp, err := pairing_crypto.EciesX25519KeypairFromBytes(priv)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"secretKey": hex.EncodeToString(kp.SecretKey),
+			"publicKey": hex.EncodeToString(kp.PublicKey),
+		})
+	})
+
+	r.POST("/ecies-x25519/encrypt", func(c *gin.Context) {
+		var req struct {
+			PublicKey string `json:"publicKey" binding:"required"`
+			Message   string `json:"message" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		pk, _ := hex.DecodeString(req.PublicKey)
+		enc, err := pairing_crypto.EciesX25519Encrypt(pk, []byte(req.Message))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ciphertext": hex.EncodeToString(enc)})
+	})
+
+	r.POST("/ecies-x25519/decrypt", func(c *gin.Context) {
+		var req struct {
+			SecretKey  string `json:"secretKey" binding:"required"`
+			Ciphertext string `json:"ciphertext" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		sk, _ := hex.DecodeString(req.SecretKey)
+		ct, _ := hex.DecodeString(req.Ciphertext)
+		dec, err := pairing_crypto.EciesX25519Decrypt(sk, ct)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": string(dec)})
+	})
+
 	// --- 5-Step Integration Test Endpoint ---
 	r.GET("/integration/test", func(c *gin.Context) {
 		// 1. 키 쌍 생성 (동일 시드에서 3개)
@@ -237,6 +375,48 @@ func main() {
 			"step5_decrypted_message": string(decrypted),
 			"step5_success": step5Success,
 			"overall_success": step4Success && step5Success,
+		})
+	})
+
+	r.GET("/integration/ed25519-test", func(c *gin.Context) {
+		// 1. Ed25519 키 쌍 생성
+		seed := make([]byte, 32)
+		// rand.Read(seed) in production
+		kp, _ := pairing_crypto.Ed25519KeypairFromSeed(seed)
+		
+		// 2. Ed25519 서명 및 검증
+		msg := []byte("Ed25519 flow integration test")
+		sig, _ := pairing_crypto.Ed25519Sign(kp.SecretKey, msg)
+		valid, _ := pairing_crypto.Ed25519Verify(kp.PublicKey, msg, sig)
+		
+		// 3. X25519 변환
+		xsk, _ := pairing_crypto.Ed25519SkToX25519(kp.SecretKey)
+		xpk, _ := pairing_crypto.Ed25519PkToX25519(kp.PublicKey)
+		
+		// 4. X25519 ECIES 암복호화 (변환된 키 사용)
+		secretMsg := []byte("Secret message via converted X25519")
+		encrypted, err := pairing_crypto.EciesX25519Encrypt(xpk, secretMsg)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Encryption failed: " + err.Error()})
+			return
+		}
+		
+		decrypted, err := pairing_crypto.EciesX25519Decrypt(xsk, encrypted)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Decryption failed: " + err.Error()})
+			return
+		}
+		
+		step4Success := string(decrypted) == string(secretMsg)
+
+		c.JSON(http.StatusOK, gin.H{
+			"ed25519_publicKey": hex.EncodeToString(kp.PublicKey),
+			"ed25519_signature": hex.EncodeToString(sig),
+			"ed25519_is_valid": valid,
+			"x25519_publicKey": hex.EncodeToString(xpk),
+			"x25519_decrypted_message": string(decrypted),
+			"x25519_success": step4Success,
+			"overall_success": valid && step4Success,
 		})
 	})
 

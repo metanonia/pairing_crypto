@@ -91,6 +91,18 @@ typedef EciesEncryptDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBu
 typedef EciesDecryptNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
 typedef EciesDecryptDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
 
+typedef Ed25519KeypairFromSeedNative = ffi.Int32 Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef Ed25519KeypairFromSeedDart = int Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef Ed25519SignNative = ffi.Int32 Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef Ed25519SignDart = int Function(ByteArray, ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
+typedef Ed25519VerifyNative = ffi.Int32 Function(ByteArray, ByteArray, ByteArray, ffi.Pointer<ExternError>);
+typedef Ed25519VerifyDart = int Function(ByteArray, ByteArray, ByteArray, ffi.Pointer<ExternError>);
+
+typedef Ed25519ToX25519Native = ffi.Int32 Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+typedef Ed25519ToX25519Dart = int Function(ByteArray, ffi.Pointer<ByteBuffer>, ffi.Pointer<ExternError>);
+
 class PairingCryptoLib {
   late ffi.DynamicLibrary _lib;
 
@@ -147,6 +159,17 @@ class PairingCryptoLib {
   late final EciesEncryptDart _eciesEncrypt;
   late final EciesDecryptDart _eciesDecrypt;
 
+  // Ed25519 API
+  late final Ed25519KeypairFromSeedDart _ed25519KeypairFromSeed;
+  late final Ed25519SignDart _ed25519Sign;
+  late final Ed25519VerifyDart _ed25519Verify;
+  late final Ed25519ToX25519Dart _ed25519SkToX25519;
+  late final Ed25519ToX25519Dart _ed25519PkToX25519;
+
+  late final EciesKeypairFromBytesDart _eciesX25519KeypairFromBytes;
+  late final EciesEncryptDart _eciesX25519Encrypt;
+  late final EciesDecryptDart _eciesX25519Decrypt;
+
   PairingCryptoLib() {
     if (Platform.isAndroid) {
       _lib = ffi.DynamicLibrary.open('libpairing_crypto_c.so');
@@ -200,6 +223,16 @@ class PairingCryptoLib {
     _eciesKeypairFromBytes = _lib.lookupFunction<EciesKeypairFromBytesNative, EciesKeypairFromBytesDart>('pairing_crypto_ecies_keypair_from_bytes');
     _eciesEncrypt = _lib.lookupFunction<EciesEncryptNative, EciesEncryptDart>('pairing_crypto_ecies_encrypt');
     _eciesDecrypt = _lib.lookupFunction<EciesDecryptNative, EciesDecryptDart>('pairing_crypto_ecies_decrypt');
+
+    _ed25519KeypairFromSeed = _lib.lookupFunction<Ed25519KeypairFromSeedNative, Ed25519KeypairFromSeedDart>('pairing_crypto_ed25519_keypair_from_seed');
+    _ed25519Sign = _lib.lookupFunction<Ed25519SignNative, Ed25519SignDart>('pairing_crypto_ed25519_sign');
+    _ed25519Verify = _lib.lookupFunction<Ed25519VerifyNative, Ed25519VerifyDart>('pairing_crypto_ed25519_verify');
+    _ed25519SkToX25519 = _lib.lookupFunction<Ed25519ToX25519Native, Ed25519ToX25519Dart>('pairing_crypto_ed25519_sk_to_x25519');
+    _ed25519PkToX25519 = _lib.lookupFunction<Ed25519ToX25519Native, Ed25519ToX25519Dart>('pairing_crypto_ed25519_pk_to_x25519');
+
+    _eciesX25519KeypairFromBytes = _lib.lookupFunction<EciesKeypairFromBytesNative, EciesKeypairFromBytesDart>('pairing_crypto_ecies_x25519_keypair_from_bytes');
+    _eciesX25519Encrypt = _lib.lookupFunction<EciesEncryptNative, EciesEncryptDart>('pairing_crypto_ecies_x25519_encrypt');
+    _eciesX25519Decrypt = _lib.lookupFunction<EciesDecryptNative, EciesDecryptDart>('pairing_crypto_ecies_x25519_decrypt');
   }
 
   Map<String, Uint8List> generateKeyPair(Uint8List ikm, [Uint8List? keyInfo]) {
@@ -526,6 +559,165 @@ class PairingCryptoLib {
       final res = _eciesDecrypt(skPtr.ref, encPtr.ref, buf, err);
       _checkError(err);
       if (res != 0) throw Exception('ECIES Decrypt failed');
+      final dec = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return dec;
+    } finally {
+      _freePtr(skPtr);
+      _freePtr(encPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  // --- Ed25519 Methods ---
+
+  Map<String, Uint8List> ed25519KeypairFromSeed(Uint8List seed) {
+    final err = calloc<ExternError>();
+    final skBuf = calloc<ByteBuffer>();
+    final pkBuf = calloc<ByteBuffer>();
+    final seedPtr = _mallocByteArray(seed);
+    try {
+      final res = _ed25519KeypairFromSeed(seedPtr.ref, skBuf, pkBuf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Ed25519 Keypair from Seed failed');
+      final sk = Uint8List.fromList(skBuf.ref.data.asTypedList(skBuf.ref.length));
+      final pk = Uint8List.fromList(pkBuf.ref.data.asTypedList(pkBuf.ref.length));
+      _freeBuffer(skBuf.ref);
+      _freeBuffer(pkBuf.ref);
+      return {'secretKey': sk, 'publicKey': pk};
+    } finally {
+      _freePtr(seedPtr);
+      calloc.free(skBuf);
+      calloc.free(pkBuf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List ed25519Sign(Uint8List privkey, Uint8List message) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    final msgPtr = _mallocByteArray(message);
+    try {
+      final res = _ed25519Sign(skPtr.ref, msgPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Ed25519 Sign failed');
+      final sig = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return sig;
+    } finally {
+      _freePtr(skPtr);
+      _freePtr(msgPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  bool ed25519Verify(Uint8List pubkey, Uint8List message, Uint8List signature) {
+    final err = calloc<ExternError>();
+    final pkPtr = _mallocByteArray(pubkey);
+    final msgPtr = _mallocByteArray(message);
+    final sigPtr = _mallocByteArray(signature);
+    try {
+      final res = _ed25519Verify(pkPtr.ref, msgPtr.ref, sigPtr.ref, err);
+      _checkError(err);
+      return res == 0;
+    } finally {
+      _freePtr(pkPtr);
+      _freePtr(msgPtr);
+      _freePtr(sigPtr);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List ed25519SkToX25519(Uint8List privkey) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    try {
+      final res = _ed25519SkToX25519(skPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Ed25519 SK to X25519 failed');
+      final xsk = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return xsk;
+    } finally {
+      _freePtr(skPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List ed25519PkToX25519(Uint8List pubkey) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final pkPtr = _mallocByteArray(pubkey);
+    try {
+      final res = _ed25519PkToX25519(pkPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('Ed25519 PK to X25519 failed');
+      final xpk = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return xpk;
+    } finally {
+      _freePtr(pkPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Map<String, Uint8List> eciesX25519KeypairFromBytes(Uint8List privkey) {
+    final err = calloc<ExternError>();
+    final skBuf = calloc<ByteBuffer>();
+    final pkBuf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    try {
+      final res = _eciesX25519KeypairFromBytes(skPtr.ref, skBuf, pkBuf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES X25519 Keypair from Bytes failed');
+      final sk = Uint8List.fromList(skBuf.ref.data.asTypedList(skBuf.ref.length));
+      final pk = Uint8List.fromList(pkBuf.ref.data.asTypedList(pkBuf.ref.length));
+      _freeBuffer(skBuf.ref);
+      _freeBuffer(pkBuf.ref);
+      return {'secretKey': sk, 'publicKey': pk};
+    } finally {
+      _freePtr(skPtr);
+      calloc.free(skBuf);
+      calloc.free(pkBuf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List eciesX25519Encrypt(Uint8List xPubkey, Uint8List msg) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final pkPtr = _mallocByteArray(xPubkey);
+    final msgPtr = _mallocByteArray(msg);
+    try {
+      final res = _eciesX25519Encrypt(pkPtr.ref, msgPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES X25519 Encrypt failed');
+      final enc = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
+      _freeBuffer(buf.ref);
+      return enc;
+    } finally {
+      _freePtr(pkPtr);
+      _freePtr(msgPtr);
+      calloc.free(buf);
+      calloc.free(err);
+    }
+  }
+
+  Uint8List eciesX25519Decrypt(Uint8List privkey, Uint8List encryptedData) {
+    final err = calloc<ExternError>();
+    final buf = calloc<ByteBuffer>();
+    final skPtr = _mallocByteArray(privkey);
+    final encPtr = _mallocByteArray(encryptedData);
+    try {
+      final res = _eciesX25519Decrypt(skPtr.ref, encPtr.ref, buf, err);
+      _checkError(err);
+      if (res != 0) throw Exception('ECIES X25519 Decrypt failed');
       final dec = Uint8List.fromList(buf.ref.data.asTypedList(buf.ref.length));
       _freeBuffer(buf.ref);
       return dec;

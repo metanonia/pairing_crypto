@@ -212,6 +212,29 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  void _runEd25519Flow() {
+    setState(() { _edFlowStatus = 'Ed25519 통합 플로우 실행 중...'; });
+    try {
+      // 1. Ed25519 키 생성 및 변환
+      final seed = Uint8List(32);
+      final kp = _sdk.ed25519KeypairFromSeed(seed);
+      final xsk = _sdk.ed25519SkToX25519(kp['secretKey']!);
+      final xpk = _sdk.ed25519PkToX25519(kp['publicKey']!);
+
+      // 2. X25519 ECIES 암복호화
+      final msg = Uint8List.fromList("Hello X25519".codeUnits);
+      final encrypted = _sdk.eciesX25519Encrypt(xpk, msg);
+      final decrypted = _sdk.eciesX25519Decrypt(xsk, encrypted);
+      final success = String.fromCharCodes(decrypted) == "Hello X25519";
+
+      setState(() {
+        _edFlowStatus = 'Ed25519 결과: ${success ? "성공" : "실패"}';
+      });
+    } catch (e) {
+      setState(() { _edFlowStatus = '실패: $e'; });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

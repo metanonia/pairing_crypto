@@ -474,3 +474,90 @@ func EciesDecrypt(privkey, encryptedMsg []byte) ([]byte, error) {
 	}
 	return fromByteBuffer(decOut), nil
 }
+
+// --- Ed25519 Implementation ---
+
+func Ed25519KeypairFromSeed(seed []byte) (*KeyPair, error) {
+	var skOut, pkOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ed25519_keypair_from_seed(toByteArray(seed), &skOut, &pkOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return &KeyPair{
+		SecretKey: fromByteBuffer(skOut),
+		PublicKey: fromByteBuffer(pkOut),
+	}, nil
+}
+
+func Ed25519Sign(privkey, message []byte) ([]byte, error) {
+	var sigOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ed25519_sign(toByteArray(privkey), toByteArray(message), &sigOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(sigOut), nil
+}
+
+func Ed25519Verify(pubkey, message, signature []byte) (bool, error) {
+	var err C.ExternError
+	res := C.pairing_crypto_ed25519_verify(toByteArray(pubkey), toByteArray(message), toByteArray(signature), &err)
+	if err.code != 0 {
+		return false, handleError(err)
+	}
+	return res == 0, nil
+}
+
+func Ed25519SkToX25519(privkey []byte) ([]byte, error) {
+	var skOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ed25519_sk_to_x25519(toByteArray(privkey), &skOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(skOut), nil
+}
+
+func Ed25519PkToX25519(pubkey []byte) ([]byte, error) {
+	var pkOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ed25519_pk_to_x25519(toByteArray(pubkey), &pkOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(pkOut), nil
+}
+
+func EciesX25519KeypairFromBytes(privkey []byte) (*KeyPair, error) {
+	var skOut, pkOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_x25519_keypair_from_bytes(toByteArray(privkey), &skOut, &pkOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return &KeyPair{
+		SecretKey: fromByteBuffer(skOut),
+		PublicKey: fromByteBuffer(pkOut),
+	}, nil
+}
+
+func EciesX25519Encrypt(pubkey, msg []byte) ([]byte, error) {
+	var encOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_x25519_encrypt(toByteArray(pubkey), toByteArray(msg), &encOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(encOut), nil
+}
+
+func EciesX25519Decrypt(privkey, encryptedMsg []byte) ([]byte, error) {
+	var decOut C.ByteBuffer
+	var err C.ExternError
+	res := C.pairing_crypto_ecies_x25519_decrypt(toByteArray(privkey), toByteArray(encryptedMsg), &decOut, &err)
+	if res != 0 {
+		return nil, handleError(err)
+	}
+	return fromByteBuffer(decOut), nil
+}

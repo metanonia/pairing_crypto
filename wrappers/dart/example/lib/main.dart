@@ -16,6 +16,9 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String _status = '준비됨';
   String _integrationStatus = '준비됨';
+  String _ed25519Status = '준비됨';
+  String _x25519Status = '준비됨';
+  String _edFlowStatus = '준비됨';
   late final PairingCryptoLib _sdk;
   Uint8List? _secretKey;
   Uint8List? _publicKey;
@@ -165,6 +168,58 @@ class _MyAppState extends State<MyApp> {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Ed25519 서명 테스트',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('Ed25519 상태: $_ed25519Status'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'X25519 ECIES 테스트',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('X25519 상태: $_x25519Status'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 4,
+                color: Colors.purple.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Ed25519 -> X25519 통합 플로우',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.purple),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('플로우 상태: $_edFlowStatus'),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
               Wrap(
                 spacing: 20,
@@ -188,6 +243,33 @@ class _MyAppState extends State<MyApp> {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('5단계 통합 테스트', style: TextStyle(fontSize: 16)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _runEd25519Test,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Ed25519 테스트', style: TextStyle(fontSize: 16)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _runX25519Test,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('X25519 ECIES', style: TextStyle(fontSize: 16)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _runEdFlow,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Ed25519 통합 플로우', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -237,18 +319,139 @@ class _MyAppState extends State<MyApp> {
       final decrypted = _sdk.eciesDecrypt(privKeys[1], encrypted);
       final step5Success = String.fromCharCodes(decrypted) == "Secret ECIES message";
 
+      // 6. X25519 ECIES 암/복호화 (Key 0-1 간)
+      final kpX1 = _sdk.eciesX25519KeypairFromBytes(privKeys[1]);
+      final secretXMsg = Uint8List.fromList("Secret X25519 ECIES message".codeUnits);
+      final encryptedX = _sdk.eciesX25519Encrypt(kpX1['publicKey']!, secretXMsg);
+      final decryptedX = _sdk.eciesX25519Decrypt(privKeys[1], encryptedX);
+      final step6Success = String.fromCharCodes(decryptedX) == "Secret X25519 ECIES message";
+
       setState(() {
         _integrationStatus = '--- 5단계 통합 테스트 결과 ---\n\n'
             '1. HD Wallet 3개 키 생성 성공\n'
             '2. ETH 주소 생성 성공: ${addresses[0]} 외 2개\n'
             '3. ECDSA 서명 성공 (${signature.length}바이트)\n'
             '4. 주소 복구 성공 여부: $step4Success ($recoveredAddr)\n'
-            '5. ECIES 암/복호화 성공 여부: $step5Success\n\n'
-            '종합 결과: ${step4Success && step5Success ? "PASS" : "FAIL"}';
+            '5. ECIES-k256 성공 여부: $step5Success\n'
+            '6. ECIES-X25519 성공 여부: $step6Success\n\n'
+            '종합 결과: ${step4Success && step5Success && step6Success ? "PASS" : "FAIL"}';
       });
     } catch (e) {
       setState(() {
         _integrationStatus = '통합 테스트 실패: $e';
+      });
+    }
+  }
+
+  void _runEd25519Test() {
+    setState(() {
+      _ed25519Status = 'Ed25519 테스트 실행 중...';
+    });
+
+    try {
+      // 1. 키 쌍 생성
+      final seed = Uint8List(32); // 실제로는 랜덤 시드를 사용해야 함
+      final kp = _sdk.ed25519KeypairFromSeed(seed);
+      final pk = kp['publicKey']!;
+      final sk = kp['secretKey']!;
+
+      // 2. 메시지 서명
+      final message = Uint8List.fromList("Hello Ed25519 from Flutter".codeUnits);
+      final sig = _sdk.ed25519Sign(sk, message);
+
+      // 3. 서명 검증
+      final valid = _sdk.ed25519Verify(pk, message, sig);
+
+      // 4. X25519로 변환 테스트
+      final xsk = _sdk.ed25519SkToX25519(sk);
+      final xpk = _sdk.ed25519PkToX25519(pk);
+
+      setState(() {
+        _ed25519Status = '--- Ed25519 테스트 결과 ---\n\n'
+            '1. 키 생성 성공 (32/32 bytes)\n'
+            '2. 메시지 서명 성공 (${sig.length} bytes)\n'
+            '3. 서명 검증 결과: ${valid ? "성공 ✅" : "실패 ❌"}\n'
+            '4. X25519 변환 결과: ${xsk.length == 32 && xpk.length == 32 ? "성공 ✅" : "실패 ❌"}';
+      });
+    } catch (e) {
+      setState(() {
+        _ed25519Status = 'Ed25519 테스트 실패: $e';
+      });
+    }
+  }
+
+  void _runX25519Test() {
+    setState(() {
+      _x25519Status = 'X25519 ECIES 테스트 실행 중...';
+    });
+
+    try {
+      // 1. 키 쌍 생성
+      final priv = Uint8List(32); // 실제로는 랜덤 시드를 사용해야 함
+      final kp = _sdk.eciesX25519KeypairFromBytes(priv);
+      final pk = kp['publicKey']!;
+      final sk = kp['secretKey']!;
+
+      // 2. 메시지 암호화
+      final message = Uint8List.fromList("Hello X25519 ECIES from Flutter".codeUnits);
+      final encrypted = _sdk.eciesX25519Encrypt(pk, message);
+
+      // 3. 메시지 복호화
+      final decrypted = _sdk.eciesX25519Decrypt(sk, encrypted);
+      final success = String.fromCharCodes(decrypted) == "Hello X25519 ECIES from Flutter";
+
+      setState(() {
+        _x25519Status = '--- X25519 ECIES 결과 ---\n\n'
+            '1. 키 생성 성공 (32/32 bytes)\n'
+            '2. 암호화 성공 (${encrypted.length} bytes)\n'
+            '3. 복호화 결과: ${success ? "성공 ✅" : "실패 ❌"}';
+      });
+    } catch (e) {
+      setState(() {
+        _x25519Status = 'X25519 ECIES 테스트 실패: $e';
+      });
+    }
+  }
+
+  void _runEdFlow() {
+    setState(() {
+      _edFlowStatus = 'Ed25519 통합 플로우 실행 중...';
+    });
+
+    try {
+      // 1. Ed25519 키 쌍 생성
+      final seed = Uint8List(32);
+      final kp = _sdk.ed25519KeypairFromSeed(seed);
+      final edPk = kp['publicKey']!;
+      final edSk = kp['secretKey']!;
+
+      // 2. Ed25519 서명 및 검증
+      final msg = Uint8List.fromList("Ed25519-to-X25519 Flow Test".codeUnits);
+      final sig = _sdk.ed25519Sign(edSk, msg);
+      final valid = _sdk.ed25519Verify(edPk, msg, sig);
+      if (!valid) throw Exception("Ed25519 검증 실패");
+
+      // 3. X25519 변환
+      final xsk = _sdk.ed25519SkToX25519(edSk);
+      final xpk = _sdk.ed25519PkToX25519(edPk);
+
+      // 4. X25519 ECIES 암복호화 (변환된 키 사용)
+      final secretMsg = Uint8List.fromList("Secret via converted X25519".codeUnits);
+      final encrypted = _sdk.eciesX25519Encrypt(xpk, secretMsg);
+      final decrypted = _sdk.eciesX25519Decrypt(xsk, encrypted);
+      final success = String.fromCharCodes(decrypted) == "Secret via converted X25519";
+
+      setState(() {
+        _edFlowStatus = '--- Ed25519 통합 플로우 결과 ---\n\n'
+            '1. Ed25519 키 생성 성공\n'
+            '2. Ed25519 서명/검증 성공 ✅\n'
+            '3. X25519 키 변환 성공 ✅\n'
+            '4. X25519 ECIES 암복호화: ${success ? "성공 ✅" : "실패 ❌"}\n\n'
+            '종합 결과: ${valid && success ? "PASS" : "FAIL"}';
+      });
+    } catch (e) {
+      setState(() {
+        _edFlowStatus = '플로우 실패: $e';
       });
     }
   }

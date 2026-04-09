@@ -31,8 +31,9 @@ mod bbs;
 mod bbs_bound;
 pub mod hwallet;
 pub mod ecies;
+pub mod ed25519;
 
 /// Exposed prelude when using wasm
 pub mod prelude {
-    pub use crate::{bbs::api::*, bbs_bound::api::*, hwallet::*, ecies::*};
+    pub use crate::{bbs::api::*, bbs_bound::api::*, hwallet::*, ecies::*, ed25519::*};
 }

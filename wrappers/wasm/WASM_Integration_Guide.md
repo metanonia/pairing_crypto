@@ -202,6 +202,25 @@ const decrypted = await ecies_decrypt(keyPair.secret_key, encrypted);
 console.log(new TextDecoder().decode(decrypted)); // "Hello ECIES"
 ```
 
+### 🧬 Ed25519 to X25519 (키 변환 및 ECIES)
+Ed25519 서명 키를 X25519 암호화 키로 변환하여 ECIES를 수행하는 방법입니다.
+
+```typescript
+import { ed25519_keypair_from_seed, ed25519_sk_to_x25519, ed25519_pk_to_x25519, ecies_x25519_encrypt, ecies_x25519_decrypt } from "@mattrglobal/pairing-crypto";
+
+// 1. Ed25519 키 생성 및 변환
+const seed = new Uint8Array(32); // window.crypto.getRandomValues(seed)
+const edKp = await ed25519_keypair_from_seed(seed);
+
+const xsk = await ed25519_sk_to_x25519(edKp.secret_key);
+const xpk = await ed25519_pk_to_x25519(edKp.public_key);
+
+// 2. 변환된 X25519 키로 ECIES 수행
+const msg = new TextEncoder().encode("Hello X25519");
+const encrypted = await ecies_x25519_encrypt(xpk, msg);
+const decrypted = await ecies_x25519_decrypt(xsk, encrypted);
+```
+
 ---
 
 ## 5. 종합 통합 테스트 시나리오 (5-Step)
@@ -216,6 +235,20 @@ console.log(new TextDecoder().decode(decrypted)); // "Hello ECIES"
 
 > [!TIP]
 > 상세 구현 로직은 `wrappers/wasm/example/src/components/bbs-demo.tsx`의 `runIntegrationTest` 함수를 참고하세요.
+
+---
+
+## 6. Ed25519 통합 테스트 플로우 (Full Flow)
+
+Ed25519 키의 생명주기 전체를 검증하는 독립적인 시나리오입니다.
+
+1.  **Ed25519 키 생성**: 랜덤 시드로부터 Ed25519 키 쌍을 생성합니다.
+2.  **서명 및 검증**: 생성된 키로 메시지에 서명하고 유효성을 즉시 검증합니다.
+3.  **X25519 변환**: `birational equivalence`를 사용하여 Ed25519 키를 X25519 키로 변환합니다.
+4.  **X25519 ECIES**: 변환된 키를 사용하여 암복호화가 정상적으로 이루어지는지 확인합니다.
+
+> [!TIP]
+> 상세 구현 로직은 `bbs-demo.tsx`의 `runEd25519Flow` 함수를 참고하세요.
 
 ---
 

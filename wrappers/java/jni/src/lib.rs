@@ -56,3 +56,6 @@ pub mod hwallet;
 
 /// ECIES wrapper
 pub mod ecies;
+
+/// Ed25519 wrapper
+pub mod ed25519;

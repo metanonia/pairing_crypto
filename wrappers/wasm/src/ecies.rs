@@ -57,3 +57,30 @@ pub fn ecies_decrypt(privkey: &[u8], encrypted_data: &[u8]) -> Result<Vec<u8>, J
 pub fn ecies_decrypt_with_privkey(privkey: &[u8], encrypted_data: &[u8]) -> Result<Vec<u8>, JsValue> {
     ecies_decrypt(privkey, encrypted_data)
 }
+
+#[wasm_bindgen(js_name = ecies_x25519_keypair_from_bytes)]
+pub fn ecies_x25519_keypair_from_bytes(privkey: &[u8]) -> Result<EciesKeyPair, JsValue> {
+    set_panic_hook();
+    let (sk, pk) = EciesCipher::keypair_x25519(privkey)
+        .map_err(|e| JsValue::from_str(e.as_str()))?;
+    Ok(EciesKeyPair {
+        secret_key: sk,
+        public_key: pk,
+    })
+}
+
+#[wasm_bindgen(js_name = ecies_x25519_encrypt)]
+pub fn ecies_x25519_encrypt(x_pubkey: &[u8], msg: &[u8]) -> Result<Vec<u8>, JsValue> {
+    set_panic_hook();
+    let enc = EciesCipher::encrypt_x25519(x_pubkey, msg)
+        .map_err(|e| JsValue::from_str(e.as_str()))?;
+    Ok(enc)
+}
+
+#[wasm_bindgen(js_name = ecies_x25519_decrypt)]
+pub fn ecies_x25519_decrypt(privkey: &[u8], encrypted_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    set_panic_hook();
+    let dec = EciesCipher::decrypt_x25519(privkey, encrypted_data)
+        .map_err(|e| JsValue::from_str(e.as_str()))?;
+    Ok(dec)
+}
