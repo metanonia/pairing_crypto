@@ -201,3 +201,53 @@ export const ecies_decrypt = async (privkey, encrypted_data) => {
 
 export const ecies_encrypt_with_pubkey = ecies_encrypt;
 export const ecies_decrypt_with_privkey = ecies_decrypt;
+
+/** Ed25519 API */
+export const ed25519_keypair_from_seed = async (seed) => {
+    await initialize();
+    const result = await throwErrorOnRejectedPromise(wasm.ed25519_keypair_from_seed(seed));
+    return {
+        secret_key: new Uint8Array(result.secret_key),
+        public_key: new Uint8Array(result.public_key)
+    };
+};
+
+export const ed25519_sign = async (privkey, msg) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_sign(privkey, msg)));
+};
+
+export const ed25519_verify = async (pubkey, msg, sig) => {
+    await initialize();
+    return await throwErrorOnRejectedPromise(wasm.ed25519_verify(pubkey, msg, sig));
+};
+
+export const ed25519_sk_to_x25519 = async (privkey) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_sk_to_x25519(privkey)));
+};
+
+export const ed25519_pk_to_x25519 = async (pubkey) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_pk_to_x25519(pubkey)));
+};
+
+/** ECIES X25519 API */
+export const ecies_x25519_keypair_from_bytes = async (privkey) => {
+    await initialize();
+    const result = await throwErrorOnRejectedPromise(wasm.ecies_x25519_keypair_from_bytes(privkey));
+    return {
+        secret_key: new Uint8Array(result.secret_key),
+        public_key: new Uint8Array(result.public_key)
+    };
+};
+
+export const ecies_x25519_encrypt = async (x_pubkey, msg) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_x25519_encrypt(x_pubkey, msg)));
+};
+
+export const ecies_x25519_decrypt = async (privkey, encrypted_data) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_x25519_decrypt(privkey, encrypted_data)));
+};

@@ -48,6 +48,9 @@ impl Ed25519 {
         match verifying_key.verify(message, &signature) {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
+        }
+    }
+
     /// 개인키(Seed)를 X25519 개인키(Scalar)로 변환합니다.
     pub fn privkey_to_x25519(privkey: &[u8]) -> Result<Vec<u8>, String> {
         if privkey.len() != 32 {

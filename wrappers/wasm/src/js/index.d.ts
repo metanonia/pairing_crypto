@@ -128,3 +128,19 @@ export function ecies_encrypt(uncompressed_pubkey: Uint8Array, msg: Uint8Array):
 export function ecies_decrypt(privkey: Uint8Array, encrypted_data: Uint8Array): Promise<Uint8Array>;
 export function ecies_encrypt_with_pubkey(uncompressed_pubkey: Uint8Array, msg: Uint8Array): Promise<Uint8Array>;
 export function ecies_decrypt_with_privkey(privkey: Uint8Array, encrypted_data: Uint8Array): Promise<Uint8Array>;
+
+/** Ed25519 API */
+export interface Ed25519KeyPair {
+  secret_key: Uint8Array;
+  public_key: Uint8Array;
+}
+export function ed25519_keypair_from_seed(seed: Uint8Array): Promise<Ed25519KeyPair>;
+export function ed25519_sign(privkey: Uint8Array, msg: Uint8Array): Promise<Uint8Array>;
+export function ed25519_verify(pubkey: Uint8Array, msg: Uint8Array, sig: Uint8Array): Promise<bool>;
+export function ed25519_sk_to_x25519(privkey: Uint8Array): Promise<Uint8Array>;
+export function ed25519_pk_to_x25519(pubkey: Uint8Array): Promise<Uint8Array>;
+
+/** ECIES X25519 API */
+export function ecies_x25519_keypair_from_bytes(privkey: Uint8Array): Promise<EciesKeyPair>;
+export function ecies_x25519_encrypt(x_pubkey: Uint8Array, msg: Uint8Array): Promise<Uint8Array>;
+export function ecies_x25519_decrypt(privkey: Uint8Array, encrypted_data: Uint8Array): Promise<Uint8Array>;

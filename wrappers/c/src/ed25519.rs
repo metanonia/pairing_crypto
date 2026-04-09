@@ -1,6 +1,6 @@
 use crate::dtos::ByteArray;
 use ffi_support::{ByteBuffer, ErrorCode, ExternError};
-use pairing_crypto::Ed25519;
+use pairing_crypto::ed25519::Ed25519;
 
 #[no_mangle]
 pub extern "C" fn pairing_crypto_ed25519_keypair_from_seed(

@@ -1,6 +1,6 @@
-# Flutter 연동 가이드
+# 플러터 구현 가이드
 
-이 문서는 `pairing_crypto` Rust 라이브러리를 Flutter 프로젝트에 연동하고 Android 및 iOS에서 테스트하는 방법을 설명합니다.
+`pairing_crypto` Rust 라이브러리를 Flutter 프로젝트에 연동하고 Android/iOS에서 사용하는 방법을 설명합니다.
 
 ---
 
@@ -292,3 +292,17 @@ flutter run
 2. **캐시 오염**: `flutter clean`을 실행한 후 다시 빌드하세요.
 3. **오타 확인**: `pairing_crypto_ffi.dart`의 함수 이름이 Rust의 `#[no_mangle]` 이름과 정확히 일치하는지 확인하세요.
 4. **Android ABI**: 시뮬레이터(x86_64)와 실제 기기(arm64-v8a) 폴더에 각각 맞는 `.so` 파일이 복사되었는지 확인하세요.
+
+---
+
+## 6. 🛠️ 유지보수: 새로운 API 추가 시 주의사항
+
+Rust 코어 라이브러리에 새로운 기능이나 API가 추가될 경우, Flutter 환경에서 이를 사용하기 위해 다음의 **Dart FFI 브릿지 레이어**를 수동으로 업데이트해야 합니다.
+
+1.  **Dart FFI 정의 추가**: `wrappers/dart/lib/pairing_crypto_ffi.dart` 파일에 다음 항목들을 추가합니다:
+    *   `typedef ...Native`: C 함수 서명에 대응하는 네이티브 정의.
+    *   `typedef ...Dart`: Dart에서 사용할 함수 서명 정의.
+    *   `PairingCryptoLib` 클래스 내에 `late final` 필드로 함수 선언.
+    *   생성자에서 `_lib.lookupFunction`을 사용하여 네이티브 함수와 연결.
+2.  **Dart 래퍼 메서드 구현**: 사용자에게 노출할 고수준 메서드를 작성하여 FFI 함수를 호출하도록 구현합니다.
+3.  **재빌드 및 배포**: `wrappers/c`에서 플랫폼별 바이너리(`.so`, `.a`)를 다시 빌드하고, 생성된 파일을 Flutter 프로젝트의 `jniLibs` 또는 `Frameworks` 폴더로 다시 복사해야 합니다.

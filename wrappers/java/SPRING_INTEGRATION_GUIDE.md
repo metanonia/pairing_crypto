@@ -1,6 +1,6 @@
-# Java/Spring Boot 연동 가이드
+# 스프링 구현 가이드
 
-이 문서는 `pairing_crypto` Rust 라이브러리를 Java/Spring Boot 환경에서 JNI를 통해 연동하는 방법을 설명합니다.
+`pairing_crypto` Rust 라이브러리를 Java/Spring Boot 환경에서 JNI(Java Native Interface)를 통해 연동하는 방법을 설명합니다.
 
 ---
 
@@ -252,3 +252,14 @@ cd wrappers/java/example
 1.  **Library Path**: `System.loadLibrary("pairing_crypto_jni")`가 호출될 때 해당 라이브러리 파일이 환경 변수나 `java.library.path`에 반드시 존재해야 합니다.
 2.  **Thread Safety**: `Bls12381Sha256` 인스턴스는 멀티스레드 환경에서 안전하게 설계되어 있으나, 컨텍스트 기반 연산 시 핸들 관리에 유의하세요.
 3.  **Deployment**: 실제 서버 배포 시 대상 OS(Linux 등)용 라이브러리를 빌드하여 포함시켜야 합니다.
+
+---
+
+## 9. 🛠️ 유지보수: 새로운 API 추가 시 주의사항
+
+Rust 코어 라이브러리에 새로운 기능이나 API가 추가될 경우, Java 환경에서 이를 사용하기 위해 다음의 **JNI 브릿지 레이어**를 수동으로 업데이트해야 합니다.
+
+1.  **Rust JNI 소스 업데이트**: `wrappers/java/jni/src/` 내의 모듈(bbs, ed25519 등)에 새로운 `extern "C"` JNI 함수를 추가합니다.
+2.  **Java Native 선언**: `wrappers/java/src/main/java/pairing_crypto/` 디렉토리의 해당 클래스(Ed25519.java 등)에 `private static native` 메서드를 선언합니다.
+3.  **Java 래퍼 메서드 구현**: 사용자에게 노출할 public 메서드를 작성하여 네이티브 메서드를 호출하도록 구현합니다.
+4.  **재빌드**: `jni` 디렉토리에서 `cargo build --release`를 실행하여 새로운 `.dylib` 또는 `.so` 파일을 생성하고 Spring 프로젝트에 반영합니다.

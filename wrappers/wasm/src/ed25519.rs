@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use pairing_crypto::Ed25519;
+use pairing_crypto::ed25519::Ed25519;
 use crate::utils::set_panic_hook;
 
 #[wasm_bindgen]

@@ -303,3 +303,63 @@ module.exports.ecies_encrypt = ecies_encrypt;
 module.exports.ecies_decrypt = ecies_decrypt;
 module.exports.ecies_encrypt_with_pubkey = ecies_encrypt;
 module.exports.ecies_decrypt_with_privkey = ecies_decrypt;
+
+/** Ed25519 API */
+const ed25519_keypair_from_seed = async (seed) => {
+    await initialize();
+    const result = await throwErrorOnRejectedPromise(wasm.ed25519_keypair_from_seed(seed));
+    return {
+        secret_key: new Uint8Array(result.secret_key),
+        public_key: new Uint8Array(result.public_key)
+    };
+};
+
+const ed25519_sign = async (privkey, msg) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_sign(privkey, msg)));
+};
+
+const ed25519_verify = async (pubkey, msg, sig) => {
+    await initialize();
+    return await throwErrorOnRejectedPromise(wasm.ed25519_verify(pubkey, msg, sig));
+};
+
+const ed25519_sk_to_x25519 = async (privkey) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_sk_to_x25519(privkey)));
+};
+
+const ed25519_pk_to_x25519 = async (pubkey) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ed25519_pk_to_x25519(pubkey)));
+};
+
+/** ECIES X25519 API */
+const ecies_x25519_keypair_from_bytes = async (privkey) => {
+    await initialize();
+    const result = await throwErrorOnRejectedPromise(wasm.ecies_x25519_keypair_from_bytes(privkey));
+    return {
+        secret_key: new Uint8Array(result.secret_key),
+        public_key: new Uint8Array(result.public_key)
+    };
+};
+
+const ecies_x25519_encrypt = async (x_pubkey, msg) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_x25519_encrypt(x_pubkey, msg)));
+};
+
+const ecies_x25519_decrypt = async (privkey, encrypted_data) => {
+    await initialize();
+    return new Uint8Array(await throwErrorOnRejectedPromise(wasm.ecies_x25519_decrypt(privkey, encrypted_data)));
+};
+
+module.exports.ed25519_keypair_from_seed = ed25519_keypair_from_seed;
+module.exports.ed25519_sign = ed25519_sign;
+module.exports.ed25519_verify = ed25519_verify;
+module.exports.ed25519_sk_to_x25519 = ed25519_sk_to_x25519;
+module.exports.ed25519_pk_to_x25519 = ed25519_pk_to_x25519;
+
+module.exports.ecies_x25519_keypair_from_bytes = ecies_x25519_keypair_from_bytes;
+module.exports.ecies_x25519_encrypt = ecies_x25519_encrypt;
+module.exports.ecies_x25519_decrypt = ecies_x25519_decrypt;

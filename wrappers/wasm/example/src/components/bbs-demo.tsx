@@ -79,7 +79,6 @@ export default function BbsDemo() {
       { name: "ECDSA 서명 생성", status: "pending" },
       { name: "서명 주소 복구 (Verify)", status: "pending" },
       { name: "ECIES-k256 암복호화", status: "pending" },
-      { name: "ECIES-X25519 암복호화", status: "pending" },
     ],
   });
 
@@ -434,17 +433,10 @@ export default function BbsDemo() {
       const decryptedStr = new TextDecoder().decode(decrypted);
       updateStep(4, "success");
 
-      const kpX1 = await pkg.ecies_x25519_keypair_from_bytes(privKeys[1]);
-      const xSecretMsg = new TextEncoder().encode("Secret X25519 ECIES message");
-      const xEncrypted = await pkg.ecies_x25519_encrypt(kpX1.public_key, xSecretMsg);
-      const xDecrypted = await pkg.ecies_x25519_decrypt(privKeys[1], xEncrypted);
-      const xDecryptedStr = new TextDecoder().decode(xDecrypted);
-      updateStep(5, "success");
-
       setIntegrationResults(prev => ({
         ...prev,
         isRunning: false,
-        details: { mnemonic, addresses, recoveredAddr, decryptedStr, xDecryptedStr, success: true }
+        details: { mnemonic, addresses, recoveredAddr, decryptedStr, success: true }
       }));
       setStatus({ type: "success", message: "5단계 통합 테스트 성공!" });
     } catch (err: any) {
@@ -546,26 +538,34 @@ export default function BbsDemo() {
         <p className="text-muted-foreground">BBS+ signatures with ZKP and HD Wallet Integration</p>
       </div>
 
-      <AnimatePresence mode="wait">
-        {status.message && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className={cn(
-              "p-4 rounded-xl flex items-center justify-between border",
-              status.type === "success" ? "bg-green-500/10 border-green-500/20 text-green-400" : 
-              status.type === "error" ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-blue-500/10 border-blue-500/20 text-blue-400"
-            )}
-          >
-            <div className="flex items-center space-x-3">
-              {status.type === "success" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-              <span className="font-medium">{status.message}</span>
-            </div>
-            <button onClick={() => setStatus({message: "", type: "idle"})} className="text-xs opacity-50 hover:opacity-100">닫기</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm px-4 md:px-0">
+        <AnimatePresence mode="wait">
+          {status.message && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className={cn(
+                "p-4 rounded-2xl flex items-center justify-between border shadow-2xl backdrop-blur-xl",
+                status.type === "success" ? "bg-green-500/20 border-green-500/30 text-green-400" : 
+                status.type === "error" ? "bg-red-500/20 border-red-500/30 text-red-400" : "bg-blue-500/20 border-blue-500/30 text-blue-400"
+              )}
+            >
+              <div className="flex items-center space-x-3">
+                {status.type === "success" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                <span className="font-semibold text-sm">{status.message}</span>
+              </div>
+              <button 
+                onClick={() => setStatus({message: "", type: "idle"})} 
+                className="ml-4 p-1 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <RefreshCcw className="w-3.5 h-3.5 opacity-50 rotate-45" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <section className="glass-card p-6 rounded-2xl space-y-4">
@@ -639,10 +639,72 @@ export default function BbsDemo() {
           </div>
         </section>
 
+        <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-6 h-6 text-purple-400" />
+              <h2 className="text-2xl font-black">3. 영지식 증명 (Selective Disclosure)</h2>
+            </div>
+            <div className="flex space-x-4">
+               <button onClick={deriveProof} disabled={isProcessing || !signature} className="text-sm font-bold text-primary hover:underline disabled:opacity-50">1. 증명 생성</button>
+               <button onClick={verifyProof} disabled={isProcessing || !proof} className="text-sm font-bold text-purple-400 hover:underline disabled:opacity-50">2. 결과 확인</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {messages.map((msg, i) => (
+              <button 
+                key={i}
+                onClick={() => toggleReveal(i)}
+                className={cn(
+                  "p-4 rounded-2xl border-2 transition-all flex flex-col space-y-2 text-left relative overflow-hidden",
+                  revealedIndices.includes(i) 
+                    ? "bg-purple-500/10 border-purple-500/40" 
+                    : "bg-background/40 border-border opacity-60"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-tighter opacity-50">Message {i}</span>
+                  {revealedIndices.includes(i) ? <Eye className="w-3 h-3 text-purple-400" /> : <EyeOff className="w-3 h-3" />}
+                </div>
+                <span className="text-sm font-medium truncate w-full">{msg}</span>
+              </button>
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {proofResult && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  "p-6 rounded-3xl border-2 shadow-2xl space-y-4",
+                  proofResult.verified ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={cn("p-3 rounded-full", proofResult.verified ? "bg-green-500/20" : "bg-red-500/20")}>
+                      {proofResult.verified ? <Shield className="w-6 h-6 text-green-400" /> : <AlertCircle className="w-6 h-6 text-red-100" />}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">{proofResult.verified ? "검증 성공: 신원 증명 유효" : "검증 실패: 조작된 증명"}</h3>
+                      <p className="text-sm opacity-60">검증 시간: {proofResult.timestamp}</p>
+                    </div>
+                  </div>
+                  <div className={cn("px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest", proofResult.verified ? "bg-green-500 text-white" : "bg-red-500 text-white")}>
+                    {proofResult.verified ? "VERIFIED" : "INVALID"}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+
         <section className="glass-card p-6 rounded-2xl space-y-4">
           <div className="flex items-center space-x-3 mb-4">
             <Shield className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold">3. Ed25519 서명</h2>
+            <h2 className="text-xl font-bold">4. Ed25519 서명</h2>
           </div>
           <button 
             onClick={generateEd25519Keys}
@@ -705,7 +767,7 @@ export default function BbsDemo() {
         <section className="glass-card p-6 rounded-2xl space-y-4">
           <div className="flex items-center space-x-3 mb-4">
             <Key className="w-5 h-5 text-blue-400" />
-            <h2 className="text-xl font-bold">X25519 ECIES 암호화</h2>
+            <h2 className="text-xl font-bold">5. X25519 ECIES 암호화</h2>
           </div>
           <button 
             onClick={generateEciesX25519Keys}
@@ -735,75 +797,13 @@ export default function BbsDemo() {
           )}
         </section>
 
-        <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-black">4. 영지식 증명 (Selective Disclosure)</h2>
-            </div>
-            <div className="flex space-x-4">
-               <button onClick={deriveProof} disabled={isProcessing || !signature} className="text-sm font-bold text-primary hover:underline disabled:opacity-50">1. 증명 생성</button>
-               <button onClick={verifyProof} disabled={isProcessing || !proof} className="text-sm font-bold text-purple-400 hover:underline disabled:opacity-50">2. 결과 확인</button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            {messages.map((msg, i) => (
-              <button 
-                key={i}
-                onClick={() => toggleReveal(i)}
-                className={cn(
-                  "p-4 rounded-2xl border-2 transition-all flex flex-col space-y-2 text-left relative overflow-hidden",
-                  revealedIndices.includes(i) 
-                    ? "bg-purple-500/10 border-purple-500/40" 
-                    : "bg-background/40 border-border opacity-60"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-tighter opacity-50">Message {i}</span>
-                  {revealedIndices.includes(i) ? <Eye className="w-3 h-3 text-purple-400" /> : <EyeOff className="w-3 h-3" />}
-                </div>
-                <span className="text-sm font-medium truncate w-full">{msg}</span>
-              </button>
-            ))}
-          </div>
-
-          <AnimatePresence>
-            {proofResult && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  "p-6 rounded-3xl border-2 shadow-2xl space-y-4",
-                  proofResult.verified ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={cn("p-3 rounded-full", proofResult.verified ? "bg-green-500/20" : "bg-red-500/20")}>
-                      {proofResult.verified ? <Shield className="w-6 h-6 text-green-400" /> : <AlertCircle className="w-6 h-6 text-red-100" />}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">{proofResult.verified ? "검증 성공: 신원 증명 유효" : "검증 실패: 조작된 증명"}</h3>
-                      <p className="text-sm opacity-60">검증 시간: {proofResult.timestamp}</p>
-                    </div>
-                  </div>
-                  <div className={cn("px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest", proofResult.verified ? "bg-green-500 text-white" : "bg-red-500 text-white")}>
-                    {proofResult.verified ? "VERIFIED" : "INVALID"}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
-
         {/* Ed25519 Integration Test Section */}
         <section className="glass-card p-6 rounded-2xl md:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Zap className="w-6 h-6 text-purple-400" />
               <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-400">
-                Ed25519/X25519 통합 테스트 플로우
+                6. Ed25519/X25519 통합 테스트 플로우
               </h2>
             </div>
             <button
@@ -881,7 +881,7 @@ export default function BbsDemo() {
           <div className="flex items-center justify-between border-b border-border pb-4">
              <div className="flex items-center space-x-3">
                <Shield className="w-6 h-6 text-primary" />
-               <h2 className="text-2xl font-black">5. 5단계 종합 통합 테스트 (End-to-End)</h2>
+               <h2 className="text-2xl font-black">7. 5단계 종합 통합 테스트 (Ethereum Flow)</h2>
              </div>
           </div>
 
@@ -916,7 +916,7 @@ export default function BbsDemo() {
                   <div>
                     <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest pl-1">Step 1-2: Seed & Addresses</h5>
                     <div className="bg-background/20 p-3 rounded-lg border border-white/5 space-y-1">
-                      <div className="opacity-60">Mnemonic: {integrationResults.details.mnemonic}</div>
+                      <div className="opacity-60 text-[10px] break-all">Mnemonic: {integrationResults.details.mnemonic}</div>
                       {integrationResults.details.addresses.map((a: string, i: number) => (
                         <div key={i} className={cn(i === 0 && "text-green-400 font-bold")}>
                           - Path .../0/{i}: {a} {i === 0 && " [Main Target]"}
@@ -928,16 +928,17 @@ export default function BbsDemo() {
                     <div className="p-3 bg-background/20 rounded-lg border border-white/5">
                       <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest">Step 3-4: ECDSA Check</h5>
                       <div className="space-y-1">
-                        <div>Recovered: <span className="text-green-400">{integrationResults.details.recoveredAddr}</span></div>
-                        <div className="text-[10px] text-green-500 font-black">MATCHED ✅</div>
+                        <div className="text-[10px] opacity-70">Main Target: {integrationResults.details.addresses[0].substring(0, 10)}...</div>
+                        <div>Recovered: <span className="text-green-400 font-bold">{integrationResults.details.recoveredAddr.substring(0, 10)}...</span></div>
+                        <div className="text-[10px] text-green-500 font-black pt-1">MATCHED ✅</div>
                       </div>
                     </div>
                     <div className="p-3 bg-background/20 rounded-lg border border-white/5">
-                      <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest">Step 5-6: ECIES Check</h5>
+                      <h5 className="text-primary font-bold text-xs mb-2 uppercase tracking-widest">Step 5: ECIES Check</h5>
                       <div className="space-y-1">
-                        <div>k256: <span className="text-blue-400">"{integrationResults.details.decryptedStr}"</span></div>
-                        <div>X25519: <span className="text-purple-400">"{integrationResults.details.xDecryptedStr}"</span></div>
-                        <div className="text-[10px] text-green-500 font-black">ALL INTEGRITY OK ✅</div>
+                        <div className="text-[10px] opacity-70">Algorithm: secp256k1-AES-GCM</div>
+                        <div className="text-blue-400 font-bold">"{integrationResults.details.decryptedStr}"</div>
+                        <div className="text-[10px] text-green-500 font-black pt-1">INTEGRITY OK ✅</div>
                       </div>
                     </div>
                   </div>
