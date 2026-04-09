@@ -129,151 +129,153 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Pairing Crypto BBS Demo')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'BBS 암호화 테스트',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('BBS 상태: $_status'),
-                    ],
+      body: SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'BBS 암호화 테스트',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 20),
+                        Text('BBS 상태: $_status'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'HD Wallet & ECIES 통합 테스트',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('통합 테스트 상태: $_integrationStatus'),
-                    ],
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'HD Wallet & ECIES 통합 테스트',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 20),
+                        Text('통합 테스트 상태: $_integrationStatus'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Ed25519 서명 테스트',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('Ed25519 상태: $_ed25519Status'),
-                    ],
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Ed25519 서명 테스트',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 20),
+                        Text('Ed25519 상태: $_ed25519Status'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'X25519 ECIES 테스트',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('X25519 상태: $_x25519Status'),
-                    ],
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'X25519 ECIES 테스트',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 20),
+                        Text('X25519 상태: $_x25519Status'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 4,
-                color: Colors.purple.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Ed25519 -> X25519 통합 플로우',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.purple),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('플로우 상태: $_edFlowStatus'),
-                    ],
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  color: Colors.purple.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Ed25519 -> X25519 통합 플로우',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.purple),
+                        ),
+                        const SizedBox(height: 20),
+                        Text('플로우 상태: $_edFlowStatus'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              Wrap(
-                spacing: 20,
-                runSpacing: 20,
-                alignment: WrapAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: _runFullTest,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
+                const SizedBox(height: 40),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _runFullTest,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('BBS 테스트', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('BBS 테스트', style: TextStyle(fontSize: 16)),
-                  ),
-                  ElevatedButton(
-                    onPressed: _runIntegrationTest,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
+                    ElevatedButton(
+                      onPressed: _runIntegrationTest,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('5단계 통합 테스트', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('5단계 통합 테스트', style: TextStyle(fontSize: 16)),
-                  ),
-                  ElevatedButton(
-                    onPressed: _runEd25519Test,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
+                    ElevatedButton(
+                      onPressed: _runEd25519Test,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Ed25519 테스트', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('Ed25519 테스트', style: TextStyle(fontSize: 16)),
-                  ),
-                  ElevatedButton(
-                    onPressed: _runX25519Test,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
+                    ElevatedButton(
+                      onPressed: _runX25519Test,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('X25519 ECIES', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('X25519 ECIES', style: TextStyle(fontSize: 16)),
-                  ),
-                  ElevatedButton(
-                    onPressed: _runEdFlow,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
+                    ElevatedButton(
+                      onPressed: _runEdFlow,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Ed25519 통합 플로우', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('Ed25519 통합 플로우', style: TextStyle(fontSize: 16)),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
